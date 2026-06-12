@@ -56,7 +56,7 @@ func waitForSync(t *testing.T, client *mina.Client) {
 	start := time.Now()
 	for time.Since(start) < maxWait {
 		status, err := client.GetSyncStatus()
-		if err == nil && status == "SYNCED" {
+		if err == nil && status == mina.SyncStatusSynced {
 			return
 		}
 		if err != nil {
@@ -100,7 +100,7 @@ func TestIntegrationDaemonStatus(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if status.SyncStatus != "SYNCED" {
+	if status.SyncStatus != mina.SyncStatusSynced {
 		t.Errorf("expected SYNCED, got %s", status.SyncStatus)
 	}
 	if status.BlockchainLength == nil || *status.BlockchainLength <= 0 {
