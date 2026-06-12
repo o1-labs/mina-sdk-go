@@ -225,9 +225,12 @@ func (c *Client) GetNetworkID() (string, error) {
 // Pass an empty tokenID to use the default MINA token.
 func (c *Client) GetAccount(publicKey, tokenID string) (*AccountData, error) {
 	// tokenID is optional: a non-empty value scopes the query to that token,
-	// while leaving it unset omits the $token variable so the daemon resolves
-	// the default MINA token. A single query serves both cases.
-	vars := map[string]any{"publicKey": publicKey}
+	// while an empty value sends $token as null so the daemon resolves the
+	// default MINA token. The variable is always present in the map: the Mina
+	// daemon rejects a query whose declared variable is absent from a supplied
+	// variables object ("Missing variable `token`"), so omitting the key is not
+	// an option — null is the correct "use default" signal for a nullable arg.
+	vars := map[string]any{"publicKey": publicKey, "token": nil}
 	if tokenID != "" {
 		vars["token"] = tokenID
 	}
@@ -292,10 +295,12 @@ func (c *Client) GetAccount(publicKey, tokenID string) (*AccountData, error) {
 // GetBestChain returns blocks from the best chain.
 // Pass 0 for maxLength to use the daemon's default.
 func (c *Client) GetBestChain(maxLength int) ([]BlockInfo, error) {
-	// maxLength <= 0 omits the argument, letting the daemon apply its default.
-	var vars map[string]any
+	// maxLength <= 0 sends $maxLength as null, letting the daemon apply its
+	// default. The variable must always be present (see GetAccount): the daemon
+	// rejects a declared-but-unsupplied variable.
+	vars := map[string]any{"maxLength": nil}
 	if maxLength > 0 {
-		vars = map[string]any{"maxLength": maxLength}
+		vars["maxLength"] = maxLength
 	}
 
 	data, err := c.request(queryBestChain, vars, "get_best_chain")
@@ -378,9 +383,10 @@ func (c *Client) GetPeers() ([]PeerInfo, error) {
 // Pass an empty publicKey to get all pending commands.
 func (c *Client) GetPooledUserCommands(publicKey string) ([]PooledUserCommand, error) {
 	// publicKey is optional: a non-empty value filters to that sender, while
-	// leaving it unset omits the $publicKey variable so the daemon returns
-	// every pending command. A single query serves both cases.
-	vars := map[string]any{}
+	// an empty value sends $publicKey as null so the daemon returns every
+	// pending command. The variable must always be present (see GetAccount):
+	// the daemon rejects a declared-but-unsupplied variable.
+	vars := map[string]any{"publicKey": nil}
 	if publicKey != "" {
 		vars["publicKey"] = publicKey
 	}

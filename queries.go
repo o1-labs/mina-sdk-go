@@ -33,8 +33,10 @@ query {
 `
 
 // queryGetAccount fetches a single account. The token argument is optional:
-// $token is a nullable TokenId, and when no token variable is supplied the
-// daemon resolves the default MINA token.
+// $token is a nullable TokenId, and passing it as null makes the daemon
+// resolve the default MINA token. The caller must always supply the variable
+// (as null when defaulting) — the daemon rejects a declared variable that is
+// absent from the request.
 const queryGetAccount = `
 query ($publicKey: PublicKey!, $token: TokenId) {
     account(publicKey: $publicKey, token: $token) {
@@ -81,8 +83,10 @@ query {
 `
 
 // queryPooledUserCommands lists pending user commands. The publicKey argument
-// is optional: $publicKey is a nullable PublicKey, and when no variable is
-// supplied the daemon returns commands for every sender.
+// is optional: $publicKey is a nullable PublicKey, and passing it as null makes
+// the daemon return commands for every sender. The caller must always supply
+// the variable (as null when defaulting) — the daemon rejects a declared
+// variable that is absent from the request.
 const queryPooledUserCommands = `
 query ($publicKey: PublicKey) {
     pooledUserCommands(publicKey: $publicKey) {
