@@ -83,7 +83,7 @@ Full API documentation is available on [pkg.go.dev](https://pkg.go.dev/github.co
 
 | Method | Returns | Description |
 |--------|---------|-------------|
-| `GetSyncStatus()` | `string` | Node sync status (SYNCED, BOOTSTRAP, etc.) |
+| `GetSyncStatus()` | `SyncStatus` | Node sync status (SYNCED, BOOTSTRAP, etc.) |
 | `GetDaemonStatus()` | `*DaemonStatus` | Comprehensive daemon status |
 | `GetNetworkID()` | `string` | Network identifier |
 | `GetAccount(publicKey, tokenID)` | `*AccountData` | Account balance, nonce, delegate |

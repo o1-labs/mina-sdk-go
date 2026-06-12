@@ -81,9 +81,9 @@ func TestIntegrationSyncStatus(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	validStatuses := map[string]bool{
-		"CONNECTING": true, "LISTENING": true, "OFFLINE": true,
-		"BOOTSTRAP": true, "SYNCED": true, "CATCHUP": true,
+	validStatuses := map[mina.SyncStatus]bool{
+		mina.SyncStatusConnecting: true, mina.SyncStatusListening: true, mina.SyncStatusOffline: true,
+		mina.SyncStatusBootstrap: true, mina.SyncStatusSynced: true, mina.SyncStatusCatchup: true,
 	}
 	if !validStatuses[status] {
 		t.Errorf("unexpected sync status: %s", status)

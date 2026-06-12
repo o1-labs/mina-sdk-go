@@ -71,6 +71,8 @@ func (c Currency) Nanomina() uint64 {
 }
 
 // Mina returns the decimal string representation in whole MINA (e.g. "1.500000000").
+// The fractional part is always rendered with the full 9 nanomina digits so the
+// output round-trips exactly through CurrencyFromString.
 func (c Currency) Mina() string {
 	s := strconv.FormatUint(c.nanomina, 10)
 	if len(s) > 9 {
@@ -150,6 +152,10 @@ func (e *CurrencyUnderflowError) Error() string {
 	return fmt.Sprintf("subtraction would result in negative: %s - %s", e.A, e.B)
 }
 
+// parseDecimal converts a decimal MINA string (e.g. "1.5") into nanomina.
+// It is implemented by hand rather than via a float/decimal library to keep
+// the package dependency-free and to avoid binary-floating-point rounding of
+// nanomina amounts.
 func parseDecimal(s string) (uint64, error) {
 	segments := strings.SplitN(s, ".", 3)
 	switch len(segments) {

@@ -32,24 +32,11 @@ query {
 }
 `
 
+// queryGetAccount fetches a single account. The token argument is optional:
+// $token is a nullable TokenId, and when no token variable is supplied the
+// daemon resolves the default MINA token.
 const queryGetAccount = `
-query ($publicKey: PublicKey!) {
-    account(publicKey: $publicKey) {
-        publicKey
-        nonce
-        delegate
-        tokenId
-        balance {
-            total
-            liquid
-            locked
-        }
-    }
-}
-`
-
-const queryGetAccountWithToken = `
-query ($publicKey: PublicKey!, $token: TokenId!) {
+query ($publicKey: PublicKey!, $token: TokenId) {
     account(publicKey: $publicKey, token: $token) {
         publicKey
         nonce
@@ -93,24 +80,12 @@ query {
 }
 `
 
+// queryPooledUserCommands lists pending user commands. The publicKey argument
+// is optional: $publicKey is a nullable PublicKey, and when no variable is
+// supplied the daemon returns commands for every sender.
 const queryPooledUserCommands = `
-query ($publicKey: PublicKey!) {
+query ($publicKey: PublicKey) {
     pooledUserCommands(publicKey: $publicKey) {
-        id
-        hash
-        kind
-        nonce
-        amount
-        fee
-        from
-        to
-    }
-}
-`
-
-const queryPooledUserCommandsAll = `
-query {
-    pooledUserCommands {
         id
         hash
         kind

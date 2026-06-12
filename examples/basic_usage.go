@@ -6,6 +6,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"time"
 
 	mina "github.com/MinaProtocol/mina-sdk-go"
 )
@@ -73,8 +74,8 @@ func connectToRemoteNode() {
 	client := mina.NewClient(
 		mina.WithGraphQLURI("http://my-mina-node:3085/graphql"),
 		mina.WithRetries(5),
-		mina.WithRetryDelay(10_000_000_000), // 10 seconds
-		mina.WithTimeout(60_000_000_000),    // 60 seconds
+		mina.WithRetryDelay(10*time.Second),
+		mina.WithTimeout(60*time.Second),
 	)
 	defer client.Close()
 

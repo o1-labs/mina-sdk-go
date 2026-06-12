@@ -2,6 +2,20 @@ package mina
 
 import "encoding/json"
 
+// SyncStatus is a Mina node's synchronization status, as reported by the
+// daemon's syncStatus / daemonStatus.syncStatus fields.
+type SyncStatus string
+
+// Known sync statuses returned by the Mina daemon.
+const (
+	SyncStatusConnecting SyncStatus = "CONNECTING"
+	SyncStatusListening  SyncStatus = "LISTENING"
+	SyncStatusOffline    SyncStatus = "OFFLINE"
+	SyncStatusBootstrap  SyncStatus = "BOOTSTRAP"
+	SyncStatusSynced     SyncStatus = "SYNCED"
+	SyncStatusCatchup    SyncStatus = "CATCHUP"
+)
+
 // AccountBalance represents the balance of a Mina account.
 type AccountBalance struct {
 	Total  Currency
@@ -27,7 +41,7 @@ type PeerInfo struct {
 
 // DaemonStatus represents the status of the Mina daemon.
 type DaemonStatus struct {
-	SyncStatus                 string
+	SyncStatus                 SyncStatus
 	BlockchainLength           *int
 	HighestBlockLengthReceived *int
 	UptimeSecs                 *int

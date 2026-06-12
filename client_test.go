@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 )
 
 func gqlHandler(data any) http.HandlerFunc {
@@ -39,7 +40,7 @@ func TestGetSyncStatusSynced(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if status != "SYNCED" {
+	if status != SyncStatusSynced {
 		t.Errorf("expected SYNCED, got %s", status)
 	}
 }
@@ -53,7 +54,7 @@ func TestGetSyncStatusBootstrap(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if status != "BOOTSTRAP" {
+	if status != SyncStatusBootstrap {
 		t.Errorf("expected BOOTSTRAP, got %s", status)
 	}
 }
@@ -79,7 +80,7 @@ func TestGetDaemonStatus(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if status.SyncStatus != "SYNCED" {
+	if status.SyncStatus != SyncStatusSynced {
 		t.Errorf("expected SYNCED, got %s", status.SyncStatus)
 	}
 	if status.BlockchainLength == nil || *status.BlockchainLength != 100 {
@@ -315,7 +316,7 @@ func TestConnectionErrorAfterRetries(t *testing.T) {
 		WithGraphQLURI("http://127.0.0.1:1/graphql"),
 		WithRetries(2),
 		WithRetryDelay(0),
-		WithTimeout(100*1000*1000), // 100ms in nanoseconds... use time.Duration
+		WithTimeout(100*time.Millisecond),
 	)
 	defer client.Close()
 

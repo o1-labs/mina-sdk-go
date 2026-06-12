@@ -149,14 +149,14 @@ func (c *Client) request(query string, variables map[string]any, queryName strin
 // -- Queries --
 
 // GetSyncStatus returns the node's sync status.
-// Returns one of: CONNECTING, LISTENING, OFFLINE, BOOTSTRAP, SYNCED, CATCHUP.
-func (c *Client) GetSyncStatus() (string, error) {
+// Returns one of the SyncStatus constants (SyncStatusSynced, SyncStatusBootstrap, ...).
+func (c *Client) GetSyncStatus() (SyncStatus, error) {
 	data, err := c.request(querySyncStatus, nil, "get_sync_status")
 	if err != nil {
 		return "", err
 	}
 	var result struct {
-		SyncStatus string `json:"syncStatus"`
+		SyncStatus SyncStatus `json:"syncStatus"`
 	}
 	if err := json.Unmarshal(data, &result); err != nil {
 		return "", err
@@ -172,12 +172,12 @@ func (c *Client) GetDaemonStatus() (*DaemonStatus, error) {
 	}
 	var result struct {
 		DaemonStatus struct {
-			SyncStatus                 string `json:"syncStatus"`
-			BlockchainLength           *int   `json:"blockchainLength"`
-			HighestBlockLengthReceived *int   `json:"highestBlockLengthReceived"`
-			UptimeSecs                 *int   `json:"uptimeSecs"`
-			StateHash                  string `json:"stateHash"`
-			CommitID                   string `json:"commitId"`
+			SyncStatus                 SyncStatus `json:"syncStatus"`
+			BlockchainLength           *int       `json:"blockchainLength"`
+			HighestBlockLengthReceived *int       `json:"highestBlockLengthReceived"`
+			UptimeSecs                 *int       `json:"uptimeSecs"`
+			StateHash                  string     `json:"stateHash"`
+			CommitID                   string     `json:"commitId"`
 			Peers                      []struct {
 				PeerID     string `json:"peerId"`
 				Host       string `json:"host"`
@@ -224,13 +224,15 @@ func (c *Client) GetNetworkID() (string, error) {
 // GetAccount returns account data for a public key.
 // Pass an empty tokenID to use the default MINA token.
 func (c *Client) GetAccount(publicKey, tokenID string) (*AccountData, error) {
-	var data json.RawMessage
-	var err error
+	// tokenID is optional: a non-empty value scopes the query to that token,
+	// while leaving it unset omits the $token variable so the daemon resolves
+	// the default MINA token. A single query serves both cases.
+	vars := map[string]any{"publicKey": publicKey}
 	if tokenID != "" {
-		data, err = c.request(queryGetAccountWithToken, map[string]any{"publicKey": publicKey, "token": tokenID}, "get_account")
-	} else {
-		data, err = c.request(queryGetAccount, map[string]any{"publicKey": publicKey}, "get_account")
+		vars["token"] = tokenID
 	}
+
+	data, err := c.request(queryGetAccount, vars, "get_account")
 	if err != nil {
 		return nil, err
 	}
@@ -290,6 +292,7 @@ func (c *Client) GetAccount(publicKey, tokenID string) (*AccountData, error) {
 // GetBestChain returns blocks from the best chain.
 // Pass 0 for maxLength to use the daemon's default.
 func (c *Client) GetBestChain(maxLength int) ([]BlockInfo, error) {
+	// maxLength <= 0 omits the argument, letting the daemon apply its default.
 	var vars map[string]any
 	if maxLength > 0 {
 		vars = map[string]any{"maxLength": maxLength}
@@ -305,7 +308,7 @@ func (c *Client) GetBestChain(maxLength int) ([]BlockInfo, error) {
 			StateHash               string `json:"stateHash"`
 			CommandTransactionCount int    `json:"commandTransactionCount"`
 			CreatorAccount          struct {
-				PublicKey any `json:"publicKey"`
+				PublicKey string `json:"publicKey"`
 			} `json:"creatorAccount"`
 			ProtocolState struct {
 				ConsensusState struct {
@@ -329,9 +332,11 @@ func (c *Client) GetBestChain(maxLength int) ([]BlockInfo, error) {
 		slotGenesis, _ := strconv.Atoi(b.ProtocolState.ConsensusState.SlotSinceGenesis)
 		slotFork, _ := strconv.Atoi(b.ProtocolState.ConsensusState.Slot)
 
-		creatorPK := "unknown"
-		if v, ok := b.CreatorAccount.PublicKey.(string); ok {
-			creatorPK = v
+		// The daemon may omit the creator public key (e.g. for the genesis
+		// block); fall back to a sentinel so callers get a stable value.
+		creatorPK := b.CreatorAccount.PublicKey
+		if creatorPK == "" {
+			creatorPK = "unknown"
 		}
 
 		blocks[i] = BlockInfo{
@@ -372,13 +377,15 @@ func (c *Client) GetPeers() ([]PeerInfo, error) {
 // GetPooledUserCommands returns pending user commands from the transaction pool.
 // Pass an empty publicKey to get all pending commands.
 func (c *Client) GetPooledUserCommands(publicKey string) ([]PooledUserCommand, error) {
-	var data json.RawMessage
-	var err error
+	// publicKey is optional: a non-empty value filters to that sender, while
+	// leaving it unset omits the $publicKey variable so the daemon returns
+	// every pending command. A single query serves both cases.
+	vars := map[string]any{}
 	if publicKey != "" {
-		data, err = c.request(queryPooledUserCommands, map[string]any{"publicKey": publicKey}, "get_pooled_user_commands")
-	} else {
-		data, err = c.request(queryPooledUserCommandsAll, nil, "get_pooled_user_commands")
+		vars["publicKey"] = publicKey
 	}
+
+	data, err := c.request(queryPooledUserCommands, vars, "get_pooled_user_commands")
 	if err != nil {
 		return nil, err
 	}
@@ -423,6 +430,9 @@ func (c *Client) SendPayment(params SendPaymentParams) (*SendPaymentResult, erro
 		"amount": params.Amount.NanominaString(),
 		"fee":    params.Fee.NanominaString(),
 	}
+
+	// Memo and Nonce are optional: a zero memo and a nil nonce are simply
+	// omitted, letting the daemon assign the next nonce.
 	if params.Memo != "" {
 		input["memo"] = params.Memo
 	}
@@ -508,6 +518,8 @@ func (c *Client) SendDelegation(params SendDelegationParams) (*SendDelegationRes
 // Pass an empty string to disable the SNARK worker.
 // Returns the previous snark worker public key (empty if none).
 func (c *Client) SetSnarkWorker(publicKey string) (string, error) {
+	// A non-empty publicKey sets the SNARK worker; an empty string sends a
+	// null input, which unsets it.
 	var input any
 	if publicKey != "" {
 		input = publicKey

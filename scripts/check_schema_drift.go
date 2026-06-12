@@ -18,6 +18,11 @@
 //	go run scripts/check_schema_drift.go --endpoint http://127.0.0.1:8080/graphql --branch master --strict
 package main
 
+// The schema diff is implemented in-package (rather than via a JSON-diff
+// dependency) so this `go:build ignore` tool stays dependency-free and the
+// output can be tuned to GraphQL-specific drift categories. Output is
+// human-readable by design; if a machine-readable format is needed later,
+// emit JSON behind a flag.
 import (
 	"bytes"
 	"encoding/json"
