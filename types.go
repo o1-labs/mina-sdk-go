@@ -58,6 +58,20 @@ type BlockInfo struct {
 	GlobalSlotSinceGenesis  int
 	CreatorPK               string
 	CommandTransactionCount int
+
+	// Consensus / protocol-state details (useful for hardfork validation, where
+	// epoch-ledger and ledger-hash continuity across the fork must be checked).
+	Epoch                  int
+	StakingEpochLedgerHash string
+	StakingEpochSeed       string
+	NextEpochLedgerHash    string
+	NextEpochSeed          string
+	StagedLedgerHash       string
+	SnarkedLedgerHash      string
+
+	// Transaction summary for the block.
+	Coinbase         string
+	FeeTransferCount int
 }
 
 // SendPaymentResult is the result of a send_payment mutation.
