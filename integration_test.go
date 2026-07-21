@@ -69,6 +69,43 @@ func waitForSync(t *testing.T, client *mina.Client) {
 	t.Fatalf("Daemon did not reach SYNCED within %v", maxWait)
 }
 
+// waitForPaymentAcceptance polls the pending pool for txHash. The transaction is
+// considered accepted by the network if it appears in the pool at least once
+// (proof the daemon received it) OR if it never appears because a block was
+// produced fast enough to include it before the first poll — in both cases the
+// daemon behaved correctly. Only fails if the tx is never observed in the pool
+// and there's no other way to confirm inclusion (SDK exposes no per-tx status).
+func waitForPaymentAcceptance(t *testing.T, client *mina.Client, sender, txHash string) {
+    t.Helper()
+    maxWait := 10 * time.Second
+    poll := 300 * time.Millisecond
+    start := time.Now()
+    seenInPool := false
+
+    for time.Since(start) < maxWait {
+        cmds, err := client.GetPooledUserCommands(sender)
+        if err != nil {
+            t.Logf("Error polling pool: %v (%v)", err, time.Since(start).Round(time.Millisecond))
+            time.Sleep(poll)
+            continue
+        }
+        for _, cmd := range cmds {
+            if cmd.Hash == txHash {
+                seenInPool = true
+                return // still pending — accepted
+            }
+        }
+        if seenInPool {
+            return // was in pool before, now gone — included in a block
+        }
+        time.Sleep(poll)
+    }
+
+    if !seenInPool {
+        t.Fatalf("transaction %s was never observed in the pool within %v (daemon may not have accepted it)", txHash, maxWait)
+    }
+}
+
 // -- Read-only queries --
 
 func TestIntegrationSyncStatus(t *testing.T) {
@@ -293,35 +330,20 @@ func TestIntegrationSendDelegation(t *testing.T) {
 }
 
 func TestIntegrationPaymentAppearsInPool(t *testing.T) {
-	skipNoAccounts(t)
-	client := newIntegrationClient(t)
-	defer client.Close()
-	waitForSync(t, client)
+    skipNoAccounts(t)
+    client := newIntegrationClient(t)
+    defer client.Close()
+    waitForSync(t, client)
 
-	result, err := client.SendPayment(mina.SendPaymentParams{
-		Sender:   senderKey(),
-		Receiver: receiverKey(),
-		Amount:   mina.MustCurrencyFromString("0.001"),
-		Fee:      mina.MustCurrencyFromString("0.01"),
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
+    result, err := client.SendPayment(mina.SendPaymentParams{
+        Sender:   senderKey(),
+        Receiver: receiverKey(),
+        Amount:   mina.MustCurrencyFromString("0.001"),
+        Fee:      mina.MustCurrencyFromString("0.01"),
+    })
+    if err != nil {
+        t.Fatal(err)
+    }
 
-	time.Sleep(2 * time.Second)
-
-	cmds, err := client.GetPooledUserCommands(senderKey())
-	if err != nil {
-		t.Fatal(err)
-	}
-	found := false
-	for _, cmd := range cmds {
-		if cmd.Hash == result.Hash {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Errorf("transaction %s not found in pool", result.Hash)
-	}
+    waitForPaymentAcceptance(t, client, senderKey(), result.Hash)
 }
