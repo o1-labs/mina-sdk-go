@@ -61,14 +61,89 @@ query ($maxLength: Int) {
         creatorAccount {
             publicKey
         }
+        transactions {
+            coinbase
+            feeTransfer {
+                fee
+            }
+        }
         protocolState {
             consensusState {
                 blockHeight
                 slotSinceGenesis
                 slot
+                epoch
+                stakingEpochData {
+                    seed
+                    ledger {
+                        hash
+                    }
+                }
+                nextEpochData {
+                    seed
+                    ledger {
+                        hash
+                    }
+                }
+            }
+            blockchainState {
+                stagedLedgerHash
+                snarkedLedgerHash
             }
         }
     }
+}
+`
+
+// queryGenesisBlock fetches the network's genesis block with the same fields as
+// queryBestChain, so both decode into blockNode.
+const queryGenesisBlock = `
+query {
+    genesisBlock {
+        stateHash
+        commandTransactionCount
+        creatorAccount {
+            publicKey
+        }
+        transactions {
+            coinbase
+            feeTransfer {
+                fee
+            }
+        }
+        protocolState {
+            consensusState {
+                blockHeight
+                slotSinceGenesis
+                slot
+                epoch
+                stakingEpochData {
+                    seed
+                    ledger {
+                        hash
+                    }
+                }
+                nextEpochData {
+                    seed
+                    ledger {
+                        hash
+                    }
+                }
+            }
+            blockchainState {
+                stagedLedgerHash
+                snarkedLedgerHash
+            }
+        }
+    }
+}
+`
+
+// queryForkConfig returns the daemon's fork_config -- the full configuration
+// blob used to seed a hardfork's genesis. It is a JSON scalar, returned verbatim.
+const queryForkConfig = `
+query {
+    fork_config
 }
 `
 

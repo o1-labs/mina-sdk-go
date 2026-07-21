@@ -294,6 +294,77 @@ func (c *Client) GetAccount(publicKey, tokenID string) (*AccountData, error) {
 
 // GetBestChain returns blocks from the best chain.
 // Pass 0 for maxLength to use the daemon's default.
+// epochData is the GraphQL shape of staking/next epoch data on a block.
+type epochData struct {
+	Seed   string `json:"seed"`
+	Ledger struct {
+		Hash string `json:"hash"`
+	} `json:"ledger"`
+}
+
+// blockNode is the GraphQL shape of a single block, shared by GetBestChain and
+// GetGenesisBlock. Mina returns the numeric consensus fields as strings.
+type blockNode struct {
+	StateHash               string `json:"stateHash"`
+	CommandTransactionCount int    `json:"commandTransactionCount"`
+	CreatorAccount          struct {
+		PublicKey string `json:"publicKey"`
+	} `json:"creatorAccount"`
+	Transactions struct {
+		Coinbase    string `json:"coinbase"`
+		FeeTransfer []struct {
+			Fee string `json:"fee"`
+		} `json:"feeTransfer"`
+	} `json:"transactions"`
+	ProtocolState struct {
+		ConsensusState struct {
+			BlockHeight      string    `json:"blockHeight"`
+			SlotSinceGenesis string    `json:"slotSinceGenesis"`
+			Slot             string    `json:"slot"`
+			Epoch            string    `json:"epoch"`
+			StakingEpochData epochData `json:"stakingEpochData"`
+			NextEpochData    epochData `json:"nextEpochData"`
+		} `json:"consensusState"`
+		BlockchainState struct {
+			StagedLedgerHash  string `json:"stagedLedgerHash"`
+			SnarkedLedgerHash string `json:"snarkedLedgerHash"`
+		} `json:"blockchainState"`
+	} `json:"protocolState"`
+}
+
+func (b blockNode) toBlockInfo() BlockInfo {
+	cs := b.ProtocolState.ConsensusState
+	height, _ := strconv.Atoi(cs.BlockHeight)
+	slotGenesis, _ := strconv.Atoi(cs.SlotSinceGenesis)
+	slotFork, _ := strconv.Atoi(cs.Slot)
+	epoch, _ := strconv.Atoi(cs.Epoch)
+
+	// The daemon may omit the creator public key (e.g. for the genesis block);
+	// fall back to a sentinel so callers get a stable value.
+	creatorPK := b.CreatorAccount.PublicKey
+	if creatorPK == "" {
+		creatorPK = "unknown"
+	}
+
+	return BlockInfo{
+		StateHash:               b.StateHash,
+		Height:                  height,
+		GlobalSlotSinceHardFork: slotFork,
+		GlobalSlotSinceGenesis:  slotGenesis,
+		CreatorPK:               creatorPK,
+		CommandTransactionCount: b.CommandTransactionCount,
+		Epoch:                   epoch,
+		StakingEpochLedgerHash:  cs.StakingEpochData.Ledger.Hash,
+		StakingEpochSeed:        cs.StakingEpochData.Seed,
+		NextEpochLedgerHash:     cs.NextEpochData.Ledger.Hash,
+		NextEpochSeed:           cs.NextEpochData.Seed,
+		StagedLedgerHash:        b.ProtocolState.BlockchainState.StagedLedgerHash,
+		SnarkedLedgerHash:       b.ProtocolState.BlockchainState.SnarkedLedgerHash,
+		Coinbase:                b.Transactions.Coinbase,
+		FeeTransferCount:        len(b.Transactions.FeeTransfer),
+	}
+}
+
 func (c *Client) GetBestChain(maxLength int) ([]BlockInfo, error) {
 	// maxLength <= 0 sends $maxLength as null, letting the daemon apply its
 	// default. The variable must always be present (see GetAccount): the daemon
@@ -309,20 +380,7 @@ func (c *Client) GetBestChain(maxLength int) ([]BlockInfo, error) {
 	}
 
 	var result struct {
-		BestChain []struct {
-			StateHash               string `json:"stateHash"`
-			CommandTransactionCount int    `json:"commandTransactionCount"`
-			CreatorAccount          struct {
-				PublicKey string `json:"publicKey"`
-			} `json:"creatorAccount"`
-			ProtocolState struct {
-				ConsensusState struct {
-					BlockHeight      string `json:"blockHeight"`
-					SlotSinceGenesis string `json:"slotSinceGenesis"`
-					Slot             string `json:"slot"`
-				} `json:"consensusState"`
-			} `json:"protocolState"`
-		} `json:"bestChain"`
+		BestChain []blockNode `json:"bestChain"`
 	}
 	if err := json.Unmarshal(data, &result); err != nil {
 		return nil, err
@@ -333,27 +391,42 @@ func (c *Client) GetBestChain(maxLength int) ([]BlockInfo, error) {
 
 	blocks := make([]BlockInfo, len(result.BestChain))
 	for i, b := range result.BestChain {
-		height, _ := strconv.Atoi(b.ProtocolState.ConsensusState.BlockHeight)
-		slotGenesis, _ := strconv.Atoi(b.ProtocolState.ConsensusState.SlotSinceGenesis)
-		slotFork, _ := strconv.Atoi(b.ProtocolState.ConsensusState.Slot)
-
-		// The daemon may omit the creator public key (e.g. for the genesis
-		// block); fall back to a sentinel so callers get a stable value.
-		creatorPK := b.CreatorAccount.PublicKey
-		if creatorPK == "" {
-			creatorPK = "unknown"
-		}
-
-		blocks[i] = BlockInfo{
-			StateHash:               b.StateHash,
-			Height:                  height,
-			GlobalSlotSinceHardFork: slotFork,
-			GlobalSlotSinceGenesis:  slotGenesis,
-			CreatorPK:               creatorPK,
-			CommandTransactionCount: b.CommandTransactionCount,
-		}
+		blocks[i] = b.toBlockInfo()
 	}
 	return blocks, nil
+}
+
+// GetGenesisBlock returns the network's genesis block.
+func (c *Client) GetGenesisBlock() (*BlockInfo, error) {
+	data, err := c.request(queryGenesisBlock, nil, "get_genesis_block")
+	if err != nil {
+		return nil, err
+	}
+	var result struct {
+		GenesisBlock blockNode `json:"genesisBlock"`
+	}
+	if err := json.Unmarshal(data, &result); err != nil {
+		return nil, err
+	}
+	info := result.GenesisBlock.toBlockInfo()
+	return &info, nil
+}
+
+// GetForkConfig returns the daemon's fork_config: the full configuration blob
+// used to seed a hardfork's genesis ledger. It is returned verbatim as raw JSON
+// (the shape is large and version-dependent, so callers parse what they need).
+func (c *Client) GetForkConfig() (json.RawMessage, error) {
+	data, err := c.request(queryForkConfig, nil, "get_fork_config")
+	if err != nil {
+		return nil, err
+	}
+	var result struct {
+		ForkConfig json.RawMessage `json:"fork_config"`
+	}
+	if err := json.Unmarshal(data, &result); err != nil {
+		return nil, err
+	}
+	return result.ForkConfig, nil
 }
 
 // GetPeers returns the list of connected peers.
