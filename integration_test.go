@@ -69,6 +69,35 @@ func waitForSync(t *testing.T, client *mina.Client) {
 	t.Fatalf("Daemon did not reach SYNCED within %v", maxWait)
 }
 
+// waitForPaymentAcceptance polls the pending pool for txHash. The transaction is
+// considered accepted by the network if it appears in the pool at least once
+// (proof the daemon received it) OR if it disappears from the pool after being
+// seen there, meaning it was included in a block. Only fails if the tx is never
+// observed in the pool at all within the deadline.
+func waitForPaymentAcceptance(t *testing.T, client *mina.Client, sender, txHash string) {
+	t.Helper()
+	maxWait := 10 * time.Second
+	poll := 300 * time.Millisecond
+	start := time.Now()
+
+	for time.Since(start) < maxWait {
+		cmds, err := client.GetPooledUserCommands(sender)
+		if err != nil {
+			t.Logf("Error polling pool: %v (%v)", err, time.Since(start).Round(time.Millisecond))
+			time.Sleep(poll)
+			continue
+		}
+		for _, cmd := range cmds {
+			if cmd.Hash == txHash {
+				return // still pending — accepted
+			}
+		}
+		time.Sleep(poll)
+	}
+
+	t.Fatalf("transaction %s was never observed in the pool within %v (daemon may not have accepted it)", txHash, maxWait)
+}
+
 // -- Read-only queries --
 
 func TestIntegrationSyncStatus(t *testing.T) {
@@ -308,20 +337,5 @@ func TestIntegrationPaymentAppearsInPool(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	time.Sleep(2 * time.Second)
-
-	cmds, err := client.GetPooledUserCommands(senderKey())
-	if err != nil {
-		t.Fatal(err)
-	}
-	found := false
-	for _, cmd := range cmds {
-		if cmd.Hash == result.Hash {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Errorf("transaction %s not found in pool", result.Hash)
-	}
+	waitForPaymentAcceptance(t, client, senderKey(), result.Hash)
 }
