@@ -456,6 +456,8 @@ func sentinelForType(typ string) any {
 		return map[string]any{"from": sentinelSender, "to": sentinelReceiver, "amount": "1000000000", "fee": "1000000000"}
 	case "SendDelegationInput":
 		return map[string]any{"from": sentinelSender, "to": sentinelReceiver, "fee": "1000000000"}
+	case "UnlockInput":
+		return map[string]any{"publicKey": sentinelSender, "password": "sentinel"}
 	case "SetSnarkWorkerInput":
 		return map[string]any{"publicKey": sentinelSender}
 	case "SetSnarkWorkFee":

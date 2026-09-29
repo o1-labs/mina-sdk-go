@@ -553,6 +553,27 @@ type SendDelegationParams struct {
 	Nonce      *int   // optional explicit nonce
 }
 
+// UnlockAccount unlocks an account in the node's keystore with its
+// password, so that SendPayment and SendDelegation can send from it. It
+// returns the public key of the unlocked account.
+func (c *Client) UnlockAccount(publicKey, password string) (string, error) {
+	data, err := c.request(mutationUnlockAccount, map[string]any{
+		"input": map[string]any{"publicKey": publicKey, "password": password},
+	}, "unlock_account")
+	if err != nil {
+		return "", err
+	}
+	var result struct {
+		UnlockAccount struct {
+			PublicKey string `json:"publicKey"`
+		} `json:"unlockAccount"`
+	}
+	if err := json.Unmarshal(data, &result); err != nil {
+		return "", fmt.Errorf("unlock_account: %w", err)
+	}
+	return result.UnlockAccount.PublicKey, nil
+}
+
 // SendDelegation sends a stake delegation transaction.
 // Requires the sender's account to be unlocked on the node.
 func (c *Client) SendDelegation(params SendDelegationParams) (*SendDelegationResult, error) {
