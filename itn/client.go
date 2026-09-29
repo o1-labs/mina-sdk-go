@@ -47,6 +47,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"sync/atomic"
 	"time"
 
 	mina "github.com/MinaProtocol/mina-sdk-go"
@@ -88,6 +89,9 @@ type Client struct {
 	// waiting request can give up when its context ends.
 	lock    chan struct{}
 	session *session
+	// lastAuth is the answer of the latest auth handshake; readable without
+	// the lock.
+	lastAuth atomic.Pointer[Auth]
 }
 
 // NewClient creates a client for the ITN endpoint uri (for example
@@ -198,6 +202,7 @@ func (c *Client) handshake(ctx context.Context) (*Auth, error) {
 				return nil, err
 			}
 			c.session = &session{uuid: auth.ServerUUID, seq: auth.SignerSequenceNumber}
+			c.lastAuth.Store(auth)
 			return auth, nil
 		}
 		if attempt < c.retries {
@@ -273,6 +278,12 @@ func (c *Client) Request(ctx context.Context, query string, variables map[string
 	}
 	return nil, &SequencingError{QueryName: queryName}
 }
+
+// LastAuth returns the answer of the latest auth handshake, or nil before
+// the first one. The client runs auth again by itself after a daemon
+// restart (HTTP 412), so a caller that keeps the node's peer ID or libp2p
+// port can refresh them from here after a request.
+func (c *Client) LastAuth() *Auth { return c.lastAuth.Load() }
 
 // Auth runs the auth handshake and returns the node's answer. Other methods
 // run it when needed, so calling it first is optional.

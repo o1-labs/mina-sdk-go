@@ -143,6 +143,9 @@ func data(v map[string]any) (status int, resp any) {
 
 func TestAuthIsUnsequenced(t *testing.T) {
 	f, c := newFake(t, 4, nil)
+	if c.LastAuth() != nil {
+		t.Error("LastAuth before any auth must be nil")
+	}
 	a, err := c.Auth(context.Background())
 	if err != nil {
 		t.Fatal(err)
@@ -214,6 +217,9 @@ func TestPreconditionFailedRunsAuthAgain(t *testing.T) {
 	}
 	if got != "5" || f.kinds() != "ARAR" {
 		t.Errorf("result %q, requests %s; want 5, ARAR", got, f.kinds())
+	}
+	if a := c.LastAuth(); a == nil || a.ServerUUID != testUUID {
+		t.Errorf("LastAuth after the new auth = %+v", a)
 	}
 }
 
