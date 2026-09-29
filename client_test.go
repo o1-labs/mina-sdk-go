@@ -384,3 +384,39 @@ func TestGetPooledUserCommands(t *testing.T) {
 		t.Errorf("expected PAYMENT, got %s", cmds[0].Kind)
 	}
 }
+
+func TestUnlockAccount(t *testing.T) {
+	var got map[string]any
+	client, srv := newTestClient(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewDecoder(r.Body).Decode(&got)
+		_ = json.NewEncoder(w).Encode(map[string]any{"data": map[string]any{
+			"unlockAccount": map[string]any{"publicKey": "B62qsender..."},
+		}})
+	}))
+	defer srv.Close()
+	defer client.Close()
+
+	pk, err := client.UnlockAccount("B62qsender...", "secret")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if pk != "B62qsender..." {
+		t.Errorf("expected B62qsender..., got %s", pk)
+	}
+	input := got["variables"].(map[string]any)["input"].(map[string]any)
+	if input["publicKey"] != "B62qsender..." || input["password"] != "secret" {
+		t.Errorf("unexpected input %v", input)
+	}
+}
+
+func TestUnlockAccountWrongPassword(t *testing.T) {
+	client, srv := newTestClient(gqlErrorHandler([]map[string]any{{"message": "Wrong password"}}))
+	defer srv.Close()
+	defer client.Close()
+
+	_, err := client.UnlockAccount("B62qsender...", "wrong")
+	var gqlErr *GraphQLError
+	if !errors.As(err, &gqlErr) {
+		t.Fatalf("expected GraphQLError, got %v", err)
+	}
+}

@@ -189,6 +189,14 @@ mutation ($input: SendPaymentInput!) {
 }
 `
 
+const mutationUnlockAccount = `
+mutation ($input: UnlockInput!) {
+    unlockAccount(input: $input) {
+        publicKey
+    }
+}
+`
+
 const mutationSendDelegation = `
 mutation ($input: SendDelegationInput!) {
     sendDelegation(input: $input) {

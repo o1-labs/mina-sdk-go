@@ -97,8 +97,48 @@ Full API documentation is available on [pkg.go.dev](https://pkg.go.dev/github.co
 |--------|---------|-------------|
 | `SendPayment(params)` | `*SendPaymentResult` | Send a payment |
 | `SendDelegation(params)` | `*SendDelegationResult` | Delegate stake |
+| `UnlockAccount(publicKey, password)` | `string` | Unlock a keystore account so the node can send from it |
 | `SetSnarkWorker(publicKey)` | `string` | Set/unset SNARK worker |
 | `SetSnarkWorkFee(fee)` | `string` | Set SNARK work fee |
+
+### ITN server (package `itn`)
+
+A daemon started with `ITN_FEATURES=1`, `--itn-graphql-port` and `--itn-keys`
+serves a second GraphQL API, which load testing tools use. `itn.Client` signs
+each request with an ed25519 `itn.Key` whose public half must be in
+`--itn-keys`, and handles the daemon's sequence numbers (a new `auth` after a
+daemon restart, HTTP 412). Every method takes a `context.Context`.
+
+```go
+import "github.com/MinaProtocol/mina-sdk-go/itn"
+
+key, err := itn.KeyFromBase64(seedB64)      // base64 32-byte ed25519 seed
+fmt.Println("--itn-keys", key.PublicKeyBase64())
+
+c := itn.NewClient("http://127.0.0.1:3086/graphql", key)
+logs, err := c.InternalLogs(ctx, 0)
+handle, err := c.SchedulePayments(ctx, itn.PaymentsDetails{ /* ... */ })
+_, err = c.StopScheduledTransactions(ctx, handle)
+```
+
+| Method | GraphQL |
+|--------|---------|
+| `Auth(ctx)` | `auth` (server UUID, sequence number, peer ID, block producer) |
+| `SlotsWon(ctx)` | `slotsWon` |
+| `InternalLogs(ctx, start)` / `FlushInternalLogs(ctx, end)` | `internalLogs` / `flushInternalLogs` |
+| `SchedulePayments(ctx, PaymentsDetails)` | `schedulePayments` |
+| `ScheduleZkappCommands(ctx, ZkappCommandsDetails)` | `scheduleZkappCommands` |
+| `StopScheduledTransactions(ctx, handle)` | `stopScheduledTransactions` |
+| `UpdateGating(ctx, GatingUpdate)` | `updateGating` |
+| `StopDaemon(ctx, delay, clean)` | `stopDaemon` |
+| `SetZkappCommandLimit(ctx, limit)` | `zkAppCommandLimit` |
+| `Request(ctx, query, vars, name)` | any document, sequenced and signed |
+
+A sequenced request is never repeated after a transport error, because the
+daemon may already have run it. `schema/itn_graphql_schema.json` is an
+introspection dump of the ITN schema (daemon `4.0.0-6965b50` devnet), and a
+test checks every document in `itn/queries.go` against it. The Rust SDK has the
+same client (`mina_sdk::itn`, feature `itn`).
 
 ### Currency
 
@@ -159,6 +199,15 @@ MINA_GRAPHQL_URI=http://127.0.0.1:8080/graphql \
 MINA_TEST_SENDER_KEY=B62q... \
 MINA_TEST_RECEIVER_KEY=B62q... \
 go test -v -run Integration ./...
+```
+
+The ITN integration tests (package `itn`) need a daemon with
+`ITN_FEATURES=1`, `--itn-graphql-port 3086`, `--itn-keys <public key>` and,
+for non-empty internal logs, `--internal-tracing`; they are skipped otherwise:
+
+```bash
+MINA_ITN_URI=http://127.0.0.1:3086/graphql MINA_ITN_KEY=<base64 seed> \
+go test -v -run Integration ./itn/
 ```
 
 ## Troubleshooting

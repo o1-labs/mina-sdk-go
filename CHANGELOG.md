@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- Package `itn`: `itn.Client` for the daemon's ITN GraphQL server
+  (`--itn-graphql-port`), with ed25519 request signing (`itn.Key`), the `auth`
+  handshake, sequence numbers and recovery from HTTP 412. Every method takes a
+  `context.Context`. It covers every field of `schema_itn`: `auth`,
+  `slotsWon`, `internalLogs`, `flushInternalLogs`, `schedulePayments`,
+  `scheduleZkappCommands`, `stopScheduledTransactions`, `updateGating`,
+  `stopDaemon`, `zkAppCommandLimit`.
+- `schema/itn_graphql_schema.json`, an introspection dump of the ITN schema,
+  and an offline test of the ITN documents against it.
+- `Client.UnlockAccount`.
+
 ## [0.1.0] - 2026-04-14
 
 ### Added
