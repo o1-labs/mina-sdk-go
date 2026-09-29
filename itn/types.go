@@ -112,9 +112,10 @@ type ZkappCommandsDetails struct {
 	// FeePayers are the base58 private keys of the fee payers, which also
 	// create the accounts.
 	FeePayers []string
-	// NonDefaultToken loads a custom (non-default) owned token. It is sent
-	// only when set: released daemons (for example 4.0.0) do not have the
-	// field and reject any input that contains it.
+	// NonDefaultToken loads a custom (non-default) owned token. Only an
+	// unreleased daemon branch has this field; released daemons (for example
+	// 4.0.0) ignore it, because ocaml-graphql-server does not check input
+	// fields that its schema does not declare. It is sent only when set.
 	NonDefaultToken *bool
 }
 
