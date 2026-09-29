@@ -254,8 +254,10 @@ func TestFailedMutationIsNotRepeated(t *testing.T) {
 		Receiver: "B62qrPN5Y5yq8kGE3FbVKbGTdTAJNdtNtB5sNVpxyRwWGcDEhpMzc8g",
 	}
 	var connErr *mina.ConnectionError
-	if _, err := c.SchedulePayments(context.Background(), d); !errors.As(err, &connErr) {
-		t.Fatalf("expected ConnectionError, got %v", err)
+	var httpErr *HTTPError
+	_, err := c.SchedulePayments(context.Background(), d)
+	if !errors.As(err, &connErr) || !errors.As(err, &httpErr) || httpErr.StatusCode != http.StatusServiceUnavailable {
+		t.Fatalf("expected ConnectionError wrapping HTTPError 503, got %v", err)
 	}
 	_, _ = c.SchedulePayments(context.Background(), d)
 	if f.kinds() != "ARAR" {

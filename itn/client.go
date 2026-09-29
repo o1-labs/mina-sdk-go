@@ -187,7 +187,7 @@ func (c *Client) handshake(ctx context.Context) (*Auth, error) {
 		case status == http.StatusUnauthorized:
 			return nil, &UnauthorizedError{QueryName: name}
 		case status >= 300:
-			lastErr = fmt.Errorf("HTTP %d: %s", status, respBody)
+			lastErr = &HTTPError{StatusCode: status, Body: string(respBody)}
 		default:
 			data, err := decode(respBody, name)
 			if err != nil {
@@ -263,7 +263,7 @@ func (c *Client) Request(ctx context.Context, query string, variables map[string
 			c.session = nil
 			return nil, &mina.ConnectionError{
 				QueryName: queryName, Retries: 1,
-				LastError: fmt.Errorf("HTTP %d: %s", status, respBody),
+				LastError: &HTTPError{StatusCode: status, Body: string(respBody)},
 			}
 		}
 		// The signature was accepted, so the daemon has moved to the next
