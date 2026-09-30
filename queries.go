@@ -3,7 +3,8 @@ package mina
 // GraphQL query and mutation strings for the Mina daemon.
 //
 // These are the documents of spec/operations.graphql, the common API of the
-// Rust, Go and JS SDKs (see spec/SPEC.md); spec_test.go checks that they stay
+// Mina SDKs (see spec/SPEC.md). spec/ is a copy of o1-labs/mina-sdk-spec at
+// the tag in spec/VERSION; spec_test.go checks that these documents stay
 // identical. Change the specification first.
 
 const querySyncStatus = `query SyncStatus {

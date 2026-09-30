@@ -8,11 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- The common API of the Rust, Go and JS SDKs: `spec/SPEC.md` and
-  `spec/operations.graphql` (the same files as in mina-sdk-rust).
-  `spec_test.go` checks that the query strings are the specification's
-  documents and that the documents are valid against
-  `schema/graphql_schema.json`.
+- The common API of the Mina SDKs, from
+  [mina-sdk-spec](https://github.com/o1-labs/mina-sdk-spec) v0.1.0: `spec/`
+  is a copy at the tag in `spec/VERSION`. `spec_test.go` and
+  `spec_itn_test.go` check that the query strings (daemon and ITN) are the
+  specification's documents, and that the daemon documents are valid against
+  `schema/graphql_schema.json`. A CI job checks that `spec/` is the tag's
+  copy.
 - Methods of the common API that this SDK did not have: `GetDaemonMetrics`,
   `GetBlock` (`BlockRef`), `GetPooledZkappCommands`, `GetTransactionStatus`
   (`TransactionRef`), `GetGenesisConstants`, `GetTrackedAccounts`,
@@ -38,7 +40,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Client.UnlockAccount`.
 
 ### Changed
-- Every query is a named operation of the specification. `GetAccount` uses
+- Every query, including the ITN queries, is a named operation of the
+  specification. `GetAccount` uses
   one document with an optional `$token`.
 - `SendPaymentResult` and `SendDelegationResult` are aliases of the new
   `SubmittedCommand`. The `signature` variable is always sent, as null when

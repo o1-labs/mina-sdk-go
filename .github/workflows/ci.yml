@@ -34,6 +34,26 @@ jobs:
             exit 1
           fi
 
+  spec:
+    name: Specification copy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read spec/VERSION
+        id: spec
+        run: echo "version=$(cat spec/VERSION)" >> "$GITHUB_OUTPUT"
+
+      - name: Check out mina-sdk-spec at that tag
+        uses: actions/checkout@v4
+        with:
+          repository: o1-labs/mina-sdk-spec
+          ref: ${{ steps.spec.outputs.version }}
+          path: .mina-sdk-spec
+
+      - name: Check that spec/ is the tag's copy
+        run: .mina-sdk-spec/scripts/sync.sh --check .
+
   test:
     runs-on: ubuntu-latest
     strategy:

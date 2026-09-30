@@ -1,12 +1,14 @@
 package mina
 
-// The common API specification (spec/operations.graphql, see spec/SPEC.md)
-// against this SDK:
+// The common API specification (spec/operations.graphql, see spec/SPEC.md;
+// a copy of o1-labs/mina-sdk-spec) against this SDK:
 //
 //  1. every document of the specification is valid against
 //     schema/graphql_schema.json (fields, arguments, nested selections);
 //  2. the query strings in queries.go are exactly the specification's
-//     documents, up to white space, and every document has one.
+//     documents, up to white space, and every document has one;
+//  3. likewise the ITN query strings and spec/itn-operations.graphql
+//     (spec_itn_test.go).
 
 import (
 	"encoding/json"
@@ -254,9 +256,21 @@ func TestSpecDocumentsAreValidAgainstTheSchema(t *testing.T) {
 }
 
 func TestSDKQueriesAreTheSpecDocuments(t *testing.T) {
-	spec := readSpec(t)
+	AssertDocumentsAreTheSpec(t, "spec/operations.graphql", sdkDocuments)
+}
+
+// AssertDocumentsAreTheSpec checks that documents are exactly the operations
+// of specFile. It is exported for spec_itn_test.go (package mina_test),
+// which checks the ITN documents; package mina cannot import package itn.
+func AssertDocumentsAreTheSpec(t *testing.T, specFile string, documents []string) {
+	t.Helper()
+	raw, err := os.ReadFile(specFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	spec := operations(t, string(raw))
 	var covered []string
-	for _, doc := range sdkDocuments {
+	for _, doc := range documents {
 		ops := operations(t, doc)
 		if len(ops) != 1 {
 			t.Fatalf("one named operation per query string:\n%s", doc)
@@ -264,10 +278,10 @@ func TestSDKQueriesAreTheSpecDocuments(t *testing.T) {
 		for name, op := range ops {
 			expected, ok := spec[name]
 			if !ok {
-				t.Fatalf("%s is not in the specification", name)
+				t.Fatalf("%s is not in %s", name, specFile)
 			}
 			if !reflect.DeepEqual(op.toks, expected.toks) {
-				t.Errorf("%s differs from spec/operations.graphql", name)
+				t.Errorf("%s differs from %s", name, specFile)
 			}
 			covered = append(covered, name)
 		}
@@ -279,7 +293,7 @@ func TestSDKQueriesAreTheSpecDocuments(t *testing.T) {
 	sort.Strings(covered)
 	sort.Strings(all)
 	if !reflect.DeepEqual(covered, all) {
-		t.Errorf("every specification operation has one query string: got %v, want %v", covered, all)
+		t.Errorf("every operation of %s has one query string: got %v, want %v", specFile, covered, all)
 	}
 }
 
