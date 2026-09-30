@@ -2,11 +2,9 @@ package itn
 
 // GraphQL documents for the daemon's ITN server. They are the documents of
 // spec/itn-operations.graphql (a copy of o1-labs/mina-sdk-spec);
-// spec_itn_test.go in the root package checks that they stay identical. They
-// follow schema/itn_graphql_schema.json, an introspection dump of
-// Mina_graphql.schema_itn taken from a running daemon; schema_test.go
-// checks each of them against it. Use them with Client.Request for custom
-// selections.
+// spec_itn_test.go in the root package checks that they stay identical, and
+// mina-sdk-spec's CI validates them against the daemon's schema_itn. Use them
+// with Client.Request for custom selections.
 const (
 	// QueryAuth returns the server UUID and the signer's sequence number.
 	// It is the only operation that accepts an unsequenced signature.

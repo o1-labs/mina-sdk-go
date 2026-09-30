@@ -151,9 +151,9 @@ _, err = c.StopScheduledTransactions(ctx, handle)
 | `Request(ctx, query, vars, name)` | any document, sequenced and signed |
 
 A sequenced request is never repeated after a transport error, because the
-daemon may already have run it. `schema/itn_graphql_schema.json` is an
-introspection dump of the ITN schema (daemon `4.0.0-6965b50` devnet), and a
-test checks every document in `itn/queries.go` against it. The Rust SDK has the
+daemon may already have run it. The documents in `itn/queries.go` are those
+of `spec/itn-operations.graphql`, which mina-sdk-spec validates against the
+daemon's ITN schema. The Rust SDK has the
 same client (`mina_sdk::itn`, feature `itn`).
 
 ### Currency

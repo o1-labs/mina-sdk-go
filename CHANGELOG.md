@@ -12,9 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   [mina-sdk-spec](https://github.com/o1-labs/mina-sdk-spec) v0.1.0: `spec/`
   is a copy at the tag in `spec/VERSION`. `spec_test.go` and
   `spec_itn_test.go` check that the query strings (daemon and ITN) are the
-  specification's documents, and that the daemon documents are valid against
-  `schema/graphql_schema.json`. A CI job checks that `spec/` is the tag's
-  copy.
+  specification's documents, and a CI job checks that `spec/` is the tag's
+  copy. mina-sdk-spec's CI validates the documents against the daemon's
+  schemas.
 - Methods of the common API that this SDK did not have: `GetDaemonMetrics`,
   `GetBlock` (`BlockRef`), `GetPooledZkappCommands`, `GetTransactionStatus`
   (`TransactionRef`), `GetGenesisConstants`, `GetTrackedAccounts`,
@@ -35,8 +35,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `slotsWon`, `internalLogs`, `flushInternalLogs`, `schedulePayments`,
   `scheduleZkappCommands`, `stopScheduledTransactions`, `updateGating`,
   `stopDaemon`, `zkAppCommandLimit`.
-- `schema/itn_graphql_schema.json`, an introspection dump of the ITN schema,
-  and an offline test of the ITN documents against it.
 - `Client.UnlockAccount`.
 
 ### Changed
