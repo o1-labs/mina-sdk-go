@@ -372,13 +372,24 @@ func TestIntegrationGenesisBlockAndBlockLookups(t *testing.T) {
 		t.Errorf("genesis block = %+v", genesis)
 	}
 
-	// The best tip is always in the transition frontier, so it can be read
-	// back by state hash and by height.
-	chain, err := client.GetBestChain(1)
-	if err != nil || len(chain) == 0 {
-		t.Fatalf("best chain = %v, %v", chain, err)
+	// The best tip is in the transition frontier, so it can be read back by
+	// state hash and by height. The daemon does not find the frontier's root
+	// by height, so wait until the tip is above the root of a new chain
+	// (height 1).
+	var tip mina.BlockInfo
+	for i := 0; i < 60; i++ {
+		chain, err := client.GetBestChain(1)
+		if err != nil || len(chain) == 0 {
+			t.Fatalf("best chain = %v, %v", chain, err)
+		}
+		if tip = chain[0]; tip.Height > 1 {
+			break
+		}
+		time.Sleep(5 * time.Second)
 	}
-	tip := chain[0]
+	if tip.Height <= 1 {
+		t.Fatal("no block after the genesis block")
+	}
 	byHash, err := client.GetBlock(mina.BlockRef{StateHash: tip.StateHash})
 	if err != nil {
 		t.Fatal(err)
