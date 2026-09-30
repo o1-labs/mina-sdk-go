@@ -45,6 +45,9 @@ var httpClient = &http.Client{Timeout: 30 * time.Second}
 const (
 	sentinelSender   = "B62qpRzFVjd56FiHnNfxokVbcHMQLT119My1FEdSq8ss7KomLiSZcan"
 	sentinelReceiver = "B62qrPN5Y5yq8kGE3FbVKbGTdTAJNdtNtB5sNVpxyRwWGcDEhpMzc8g"
+	// A syntactically valid Mina signature and the empty memo.
+	sentinelSignature = "7mWxjLYgbJUkZNcGouvhVj5tJ8yu9hoexb9ntvPK8t5LHqzmrL6QJjjKtf5SgmxB4QWkDw7qoMMbbNGtHVpsbJHPyTy2EzRQ"
+	sentinelMemo      = "E4YM2vTHhWEg66xpj52JErHUBU4pZ1yageL4TVDDpTTSsv8mK6YaH"
 )
 
 const introspectionQuery = `
@@ -458,6 +461,22 @@ func sentinelForType(typ string) any {
 		return map[string]any{"from": sentinelSender, "to": sentinelReceiver, "fee": "1000000000"}
 	case "UnlockInput":
 		return map[string]any{"publicKey": sentinelSender, "password": "sentinel"}
+	case "ID":
+		return "1"
+	case "SendZkappInput":
+		// A structurally complete command with a sentinel fee payer and no
+		// account updates; the daemon rejects it at run time (signature),
+		// which is not drift.
+		return map[string]any{"zkappCommand": map[string]any{
+			"feePayer": map[string]any{
+				"body": map[string]any{
+					"publicKey": sentinelSender, "fee": "1000000000", "validUntil": nil, "nonce": "0",
+				},
+				"authorization": sentinelSignature,
+			},
+			"accountUpdates": []any{},
+			"memo":           sentinelMemo,
+		}}
 	case "SetSnarkWorkerInput":
 		return map[string]any{"publicKey": sentinelSender}
 	case "SetSnarkWorkFee":
@@ -471,13 +490,17 @@ func buildVariables(decls []varDecl) (map[string]any, bool) {
 	out := map[string]any{}
 	for _, d := range decls {
 		v := sentinelForType(d.typ)
-		if v == nil {
+		if v == nil && isRequired(d.typ) {
 			return nil, false
 		}
+		// A nullable variable without a sentinel is sent as null, as the
+		// SDK sends it when the caller omits it.
 		out[d.name] = v
 	}
 	return out, true
 }
+
+func isRequired(typ string) bool { return strings.HasSuffix(strings.TrimSpace(typ), "!") }
 
 // driftPatterns are case-insensitive substrings that uniquely identify
 // schema-level errors emitted by Mina's GraphQL surface (graphql-ppx / OCaml).
@@ -598,7 +621,7 @@ func missingSentinelTypes(decls []varDecl) []string {
 	seen := map[string]bool{}
 	var out []string
 	for _, d := range decls {
-		if sentinelForType(d.typ) == nil && !seen[d.typ] {
+		if sentinelForType(d.typ) == nil && isRequired(d.typ) && !seen[d.typ] {
 			seen[d.typ] = true
 			out = append(out, d.typ)
 		}

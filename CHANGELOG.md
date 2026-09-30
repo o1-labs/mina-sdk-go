@@ -8,6 +8,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- The common API of the Rust, Go and JS SDKs: `spec/SPEC.md` and
+  `spec/operations.graphql` (the same files as in mina-sdk-rust).
+  `spec_test.go` checks that the query strings are the specification's
+  documents and that the documents are valid against
+  `schema/graphql_schema.json`.
+- Methods of the common API that this SDK did not have: `GetDaemonMetrics`,
+  `GetBlock` (`BlockRef`), `GetPooledZkappCommands`, `GetTransactionStatus`
+  (`TransactionRef`), `GetGenesisConstants`, `GetTrackedAccounts`,
+  `GetSnarkPool` and `SendZkapp`.
+- Signatures made outside the daemon: `SendPaymentParams.Signature` and
+  `SendDelegationParams.Signature` (`SignatureInput`).
+- Result fields of the common API (the union of what the three SDKs
+  returned): more `DaemonStatus` fields and `AddrsAndPorts`; `AccountData`
+  token symbol, voting-for, receipt chain hash, timing, permissions and zkApp
+  state; `AccountBalance.BlockHeight`; `BlockInfo` previous state hash, block
+  creator, coinbase receiver, dates, staking epoch length, fee transfers and
+  user commands; `PooledUserCommand` source, receiver, memo and failure
+  reason; kind, source, receiver, amount, fee and memo of a sent command.
 - Package `itn`: `itn.Client` for the daemon's ITN GraphQL server
   (`--itn-graphql-port`), with ed25519 request signing (`itn.Key`), the `auth`
   handshake, sequence numbers and recovery from HTTP 412. Every method takes a
@@ -18,6 +36,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `schema/itn_graphql_schema.json`, an introspection dump of the ITN schema,
   and an offline test of the ITN documents against it.
 - `Client.UnlockAccount`.
+
+### Changed
+- Every query is a named operation of the specification. `GetAccount` uses
+  one document with an optional `$token`.
+- `SendPaymentResult` and `SendDelegationResult` are aliases of the new
+  `SubmittedCommand`. The `signature` variable is always sent, as null when
+  `Signature` is nil.
+- The drift check sends a nullable variable without a sentinel as null, and
+  has sentinels for `ID` and `SendZkappInput`.
 
 ## [0.1.0] - 2026-04-14
 

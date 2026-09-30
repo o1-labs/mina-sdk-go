@@ -79,24 +79,39 @@ client := mina.NewClient(
 
 Full API documentation is available on [pkg.go.dev](https://pkg.go.dev/github.com/MinaProtocol/mina-sdk-go).
 
+The Rust, Go and JS SDKs have the same API. [`spec/SPEC.md`](spec/SPEC.md)
+and [`spec/operations.graphql`](spec/operations.graphql) define it, and
+`spec_test.go` checks that this SDK's queries are the specification's
+documents.
+
 ### Queries
 
 | Method | Returns | Description |
 |--------|---------|-------------|
 | `GetSyncStatus()` | `SyncStatus` | Node sync status (SYNCED, BOOTSTRAP, etc.) |
-| `GetDaemonStatus()` | `*DaemonStatus` | Comprehensive daemon status |
+| `GetDaemonStatus()` | `*DaemonStatus` | Daemon status: chain length, peers, addresses, block production keys |
+| `GetDaemonMetrics()` | `*DaemonMetrics` | Transaction and snark pool metrics, block production delay |
 | `GetNetworkID()` | `string` | Network identifier |
-| `GetAccount(publicKey, tokenID)` | `*AccountData` | Account balance, nonce, delegate |
+| `GetAccount(publicKey, tokenID)` | `*AccountData` | Balance, nonce, delegate, timing, permissions, zkApp state |
 | `GetBestChain(maxLength)` | `[]BlockInfo` | Recent blocks from best chain |
+| `GetGenesisBlock()` | `*BlockInfo` | The genesis block |
+| `GetBlock(BlockRef)` | `*BlockInfo` | One block, by state hash or height |
 | `GetPeers()` | `[]PeerInfo` | Connected peers |
-| `GetPooledUserCommands(publicKey)` | `[]PooledUserCommand` | Pending transactions |
+| `GetPooledUserCommands(publicKey)` | `[]PooledUserCommand` | Pending payments and delegations |
+| `GetPooledZkappCommands(publicKey)` | `[]ZkappCommandResult` | Pending zkApp commands |
+| `GetTransactionStatus(TransactionRef)` | `TransactionStatus` | PENDING, INCLUDED or UNKNOWN |
+| `GetGenesisConstants()` | `*GenesisConstants` | Genesis timestamp, coinbase, account creation fee |
+| `GetTrackedAccounts()` | `[]TrackedAccount` | Accounts in the daemon's keystore |
+| `GetSnarkPool()` | `[]CompletedWork` | Completed snark work |
+| `GetForkConfig()` | `json.RawMessage` | The daemon's fork configuration |
 
 ### Mutations
 
 | Method | Returns | Description |
 |--------|---------|-------------|
-| `SendPayment(params)` | `*SendPaymentResult` | Send a payment |
-| `SendDelegation(params)` | `*SendDelegationResult` | Delegate stake |
+| `SendPayment(params)` | `*SendPaymentResult` | Send a payment; `params.Signature` for one made outside the daemon |
+| `SendDelegation(params)` | `*SendDelegationResult` | Delegate stake; `params.Signature` likewise |
+| `SendZkapp(command)` | `*ZkappCommandResult` | Send a signed zkApp command (JSON) |
 | `UnlockAccount(publicKey, password)` | `string` | Unlock a keystore account so the node can send from it |
 | `SetSnarkWorker(publicKey)` | `string` | Set/unset SNARK worker |
 | `SetSnarkWorkFee(fee)` | `string` | Set SNARK work fee |
