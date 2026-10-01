@@ -232,7 +232,7 @@ go test -v -run Integration ./itn/
 
 **Account not found** -- The account may not exist on the network. `GetAccount` returns `*AccountNotFoundError` which you can check with `errors.As`.
 
-**Schema drift** -- If queries fail with unexpected GraphQL errors, the daemon version may have changed its schema. Run: `go run scripts/check_schema_drift.go --endpoint http://your-node:3085/graphql`
+**Schema drift** -- If queries fail with unexpected GraphQL errors, the daemon version may have changed its schema. Check the documents against your node with mina-sdk-spec: `python3 scripts/check.py --endpoint http://your-node:3085/graphql` (in a clone of [mina-sdk-spec](https://github.com/o1-labs/mina-sdk-spec)).
 
 ## License
 

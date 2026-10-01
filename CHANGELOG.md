@@ -44,8 +44,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `SendPaymentResult` and `SendDelegationResult` are aliases of the new
   `SubmittedCommand`. The `signature` variable is always sent, as null when
   `Signature` is nil.
-- The drift check sends a nullable variable without a sentinel as null, and
-  has sentinels for `ID` and `SendZkappInput`.
+
+### Removed
+- The schema drift check (`scripts/check_schema_drift.go`, the Schema
+  Drift Check workflow and `schema/graphql_schema.json`). The documents of
+  this SDK are the documents of mina-sdk-spec, whose weekly drift job
+  validates them against the lightnet daemons of `master`, `compatible` and
+  `develop`.
 
 ## [0.1.0] - 2026-04-14
 
