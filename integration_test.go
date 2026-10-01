@@ -1,6 +1,7 @@
 package mina_test
 
 import (
+	"errors"
 	"os"
 	"testing"
 	"time"
@@ -338,4 +339,107 @@ func TestIntegrationPaymentAppearsInPool(t *testing.T) {
 	}
 
 	waitForPaymentAcceptance(t, client, senderKey(), result.Hash)
+}
+
+// -- Common API (spec/SPEC.md) --
+
+func TestIntegrationDaemonMetrics(t *testing.T) {
+	skipNoDaemon(t)
+	client := newIntegrationClient(t)
+	defer client.Close()
+	waitForSync(t, client)
+
+	metrics, err := client.GetDaemonMetrics()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if metrics.TransactionPoolSize < 0 {
+		t.Errorf("transaction pool size %d", metrics.TransactionPoolSize)
+	}
+}
+
+func TestIntegrationGenesisBlockAndBlockLookups(t *testing.T) {
+	skipNoDaemon(t)
+	client := newIntegrationClient(t)
+	defer client.Close()
+	waitForSync(t, client)
+
+	genesis, err := client.GetGenesisBlock()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if genesis.StateHash == "" || genesis.StakingEpochLedgerHash == "" {
+		t.Errorf("genesis block = %+v", genesis)
+	}
+
+	// The best tip is in the transition frontier, so it can be read back by
+	// state hash and by height. The daemon does not find the frontier's root
+	// by height, so wait until the tip is above the root of a new chain
+	// (height 1).
+	var tip mina.BlockInfo
+	for i := 0; i < 60; i++ {
+		chain, err := client.GetBestChain(1)
+		if err != nil || len(chain) == 0 {
+			t.Fatalf("best chain = %v, %v", chain, err)
+		}
+		if tip = chain[0]; tip.Height > 1 {
+			break
+		}
+		time.Sleep(5 * time.Second)
+	}
+	if tip.Height <= 1 {
+		t.Fatal("no block after the genesis block")
+	}
+	byHash, err := client.GetBlock(mina.BlockRef{StateHash: tip.StateHash})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if byHash.Height != tip.Height || byHash.PreviousStateHash != tip.PreviousStateHash {
+		t.Errorf("by hash = %+v, tip = %+v", byHash, tip)
+	}
+	byHeight, err := client.GetBlock(mina.BlockRef{Height: &tip.Height})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if byHeight.StateHash != tip.StateHash {
+		t.Errorf("by height = %s, tip = %s", byHeight.StateHash, tip.StateHash)
+	}
+}
+
+func TestIntegrationGenesisConstantsAndPools(t *testing.T) {
+	skipNoDaemon(t)
+	client := newIntegrationClient(t)
+	defer client.Close()
+	waitForSync(t, client)
+
+	constants, err := client.GetGenesisConstants()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if constants.GenesisTimestamp == "" {
+		t.Error("empty genesis timestamp")
+	}
+	if _, err := client.GetSnarkPool(); err != nil {
+		t.Error(err)
+	}
+	if _, err := client.GetPooledZkappCommands(""); err != nil {
+		t.Error(err)
+	}
+	if _, err := client.GetTrackedAccounts(); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestIntegrationTransactionStatusOfAnUnknownPayment(t *testing.T) {
+	skipNoDaemon(t)
+	client := newIntegrationClient(t)
+	defer client.Close()
+	waitForSync(t, client)
+
+	// An ID that does not decode is a GraphQL error, not a transport one.
+	_, err := client.GetTransactionStatus(mina.TransactionRef{Payment: "not-an-id"})
+	var gqlErr *mina.GraphQLError
+	if !errors.As(err, &gqlErr) {
+		t.Errorf("got %v, want a GraphQL error", err)
+	}
 }

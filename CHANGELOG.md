@@ -8,6 +8,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- The common API of the Mina SDKs, from
+  [mina-sdk-spec](https://github.com/o1-labs/mina-sdk-spec) v0.1.0: `spec/`
+  is a copy at the tag in `spec/VERSION`. `spec_test.go` and
+  `spec_itn_test.go` check that the query strings (daemon and ITN) are the
+  specification's documents, and a CI job checks that `spec/` is the tag's
+  copy. mina-sdk-spec's CI validates the documents against the daemon's
+  schemas.
+- Methods of the common API that this SDK did not have: `GetDaemonMetrics`,
+  `GetBlock` (`BlockRef`), `GetPooledZkappCommands`, `GetTransactionStatus`
+  (`TransactionRef`), `GetGenesisConstants`, `GetTrackedAccounts`,
+  `GetSnarkPool` and `SendZkapp`.
+- Signatures made outside the daemon: `SendPaymentParams.Signature` and
+  `SendDelegationParams.Signature` (`SignatureInput`).
+- Result fields of the common API (the union of what the three SDKs
+  returned): more `DaemonStatus` fields and `AddrsAndPorts`; `AccountData`
+  token symbol, voting-for, receipt chain hash, timing, permissions and zkApp
+  state; `AccountBalance.BlockHeight`; `BlockInfo` previous state hash, block
+  creator, coinbase receiver, dates, staking epoch length, fee transfers and
+  user commands; `PooledUserCommand` source, receiver, memo and failure
+  reason; kind, source, receiver, amount, fee and memo of a sent command.
 - Package `itn`: `itn.Client` for the daemon's ITN GraphQL server
   (`--itn-graphql-port`), with ed25519 request signing (`itn.Key`), the `auth`
   handshake, sequence numbers and recovery from HTTP 412. Every method takes a
@@ -15,9 +35,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `slotsWon`, `internalLogs`, `flushInternalLogs`, `schedulePayments`,
   `scheduleZkappCommands`, `stopScheduledTransactions`, `updateGating`,
   `stopDaemon`, `zkAppCommandLimit`.
-- `schema/itn_graphql_schema.json`, an introspection dump of the ITN schema,
-  and an offline test of the ITN documents against it.
 - `Client.UnlockAccount`.
+
+### Changed
+- Every query, including the ITN queries, is a named operation of the
+  specification. `GetAccount` uses
+  one document with an optional `$token`.
+- `SendPaymentResult` and `SendDelegationResult` are aliases of the new
+  `SubmittedCommand`. The `signature` variable is always sent, as null when
+  `Signature` is nil.
+
+### Removed
+- The schema drift check (`scripts/check_schema_drift.go`, the Schema
+  Drift Check workflow and `schema/graphql_schema.json`). The documents of
+  this SDK are the documents of mina-sdk-spec, whose weekly drift job
+  validates them against the lightnet daemons of `master`, `compatible` and
+  `develop`.
 
 ## [0.1.0] - 2026-04-14
 

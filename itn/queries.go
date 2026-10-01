@@ -1,14 +1,14 @@
 package itn
 
-// GraphQL documents for the daemon's ITN server. They follow
-// schema/itn_graphql_schema.json, an introspection dump of
-// Mina_graphql.schema_itn taken from a running daemon; schema_test.go
-// checks each of them against it. Use them with Client.Request for custom
-// selections.
+// GraphQL documents for the daemon's ITN server. They are the documents of
+// spec/itn-operations.graphql (a copy of o1-labs/mina-sdk-spec);
+// spec_itn_test.go in the root package checks that they stay identical, and
+// mina-sdk-spec's CI validates them against the daemon's schema_itn. Use them
+// with Client.Request for custom selections.
 const (
 	// QueryAuth returns the server UUID and the signer's sequence number.
 	// It is the only operation that accepts an unsequenced signature.
-	QueryAuth = `query {
+	QueryAuth = `query Auth {
   auth {
     serverUuid
     signerSequenceNumber
@@ -20,13 +20,13 @@ const (
 
 	// QuerySlotsWon returns the global slots the node's block producer keys
 	// won in the current epoch.
-	QuerySlotsWon = `query {
+	QuerySlotsWon = `query SlotsWon {
   slotsWon
 }`
 
 	// QueryInternalLogs returns the internal logs with an ID of at least
 	// $startLogId.
-	QueryInternalLogs = `query ($startLogId: Int!) {
+	QueryInternalLogs = `query InternalLogs($startLogId: Int!) {
   internalLogs(startLogId: $startLogId) {
     id
     timestamp
@@ -41,41 +41,41 @@ const (
 
 	// MutationFlushInternalLogs drops the internal logs up to and including
 	// $endLogId.
-	MutationFlushInternalLogs = `mutation ($endLogId: Int!) {
+	MutationFlushInternalLogs = `mutation FlushInternalLogs($endLogId: Int!) {
   flushInternalLogs(endLogId: $endLogId)
 }`
 
 	// MutationSchedulePayments starts sending payments and returns a handle
 	// for stopScheduledTransactions.
-	MutationSchedulePayments = `mutation ($input: PaymentsDetails!) {
+	MutationSchedulePayments = `mutation SchedulePayments($input: PaymentsDetails!) {
   schedulePayments(input: $input)
 }`
 
 	// MutationScheduleZkappCommands starts sending zkApp commands and returns
 	// a handle for stopScheduledTransactions.
-	MutationScheduleZkappCommands = `mutation ($input: ZkappCommandsDetails!) {
+	MutationScheduleZkappCommands = `mutation ScheduleZkappCommands($input: ZkappCommandsDetails!) {
   scheduleZkappCommands(input: $input)
 }`
 
 	// MutationStopScheduledTransactions stops the transactions of a handle.
-	MutationStopScheduledTransactions = `mutation ($handle: String!) {
+	MutationStopScheduledTransactions = `mutation StopScheduledTransactions($handle: String!) {
   stopScheduledTransactions(handle: $handle)
 }`
 
 	// MutationUpdateGating changes the node's connection gating.
-	MutationUpdateGating = `mutation ($input: GatingUpdate!) {
+	MutationUpdateGating = `mutation UpdateGating($input: GatingUpdate!) {
   updateGating(input: $input)
 }`
 
 	// MutationStopDaemon stops the daemon after $delaySeconds, optionally
 	// deleting its configuration directory.
-	MutationStopDaemon = `mutation ($delaySeconds: Int, $cleanConfig: Boolean) {
+	MutationStopDaemon = `mutation StopDaemon($delaySeconds: Int, $cleanConfig: Boolean) {
   stopDaemon(delaySeconds: $delaySeconds, cleanConfig: $cleanConfig)
 }`
 
 	// MutationZkappCommandLimit sets the block producer's limit of zkApp
 	// commands per block; null removes it.
-	MutationZkappCommandLimit = `mutation ($limit: Int) {
+	MutationZkappCommandLimit = `mutation ZkappCommandLimit($limit: Int) {
   zkAppCommandLimit(limit: $limit)
 }`
 )

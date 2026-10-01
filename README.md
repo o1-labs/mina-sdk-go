@@ -79,24 +79,40 @@ client := mina.NewClient(
 
 Full API documentation is available on [pkg.go.dev](https://pkg.go.dev/github.com/MinaProtocol/mina-sdk-go).
 
+The Mina SDKs have the same API, defined in
+[mina-sdk-spec](https://github.com/o1-labs/mina-sdk-spec). `spec/` is a copy
+of it at the tag in `spec/VERSION`. `spec_test.go` and `spec_itn_test.go`
+check that this SDK's queries, including the ITN queries, are the
+specification's documents, and CI checks that `spec/` is the tag's copy.
+
 ### Queries
 
 | Method | Returns | Description |
 |--------|---------|-------------|
 | `GetSyncStatus()` | `SyncStatus` | Node sync status (SYNCED, BOOTSTRAP, etc.) |
-| `GetDaemonStatus()` | `*DaemonStatus` | Comprehensive daemon status |
+| `GetDaemonStatus()` | `*DaemonStatus` | Daemon status: chain length, peers, addresses, block production keys |
+| `GetDaemonMetrics()` | `*DaemonMetrics` | Transaction and snark pool metrics, block production delay |
 | `GetNetworkID()` | `string` | Network identifier |
-| `GetAccount(publicKey, tokenID)` | `*AccountData` | Account balance, nonce, delegate |
+| `GetAccount(publicKey, tokenID)` | `*AccountData` | Balance, nonce, delegate, timing, permissions, zkApp state |
 | `GetBestChain(maxLength)` | `[]BlockInfo` | Recent blocks from best chain |
+| `GetGenesisBlock()` | `*BlockInfo` | The genesis block |
+| `GetBlock(BlockRef)` | `*BlockInfo` | One block, by state hash or height |
 | `GetPeers()` | `[]PeerInfo` | Connected peers |
-| `GetPooledUserCommands(publicKey)` | `[]PooledUserCommand` | Pending transactions |
+| `GetPooledUserCommands(publicKey)` | `[]PooledUserCommand` | Pending payments and delegations |
+| `GetPooledZkappCommands(publicKey)` | `[]ZkappCommandResult` | Pending zkApp commands |
+| `GetTransactionStatus(TransactionRef)` | `TransactionStatus` | PENDING, INCLUDED or UNKNOWN |
+| `GetGenesisConstants()` | `*GenesisConstants` | Genesis timestamp, coinbase, account creation fee |
+| `GetTrackedAccounts()` | `[]TrackedAccount` | Accounts in the daemon's keystore |
+| `GetSnarkPool()` | `[]CompletedWork` | Completed snark work |
+| `GetForkConfig()` | `json.RawMessage` | The daemon's fork configuration |
 
 ### Mutations
 
 | Method | Returns | Description |
 |--------|---------|-------------|
-| `SendPayment(params)` | `*SendPaymentResult` | Send a payment |
-| `SendDelegation(params)` | `*SendDelegationResult` | Delegate stake |
+| `SendPayment(params)` | `*SendPaymentResult` | Send a payment; `params.Signature` for one made outside the daemon |
+| `SendDelegation(params)` | `*SendDelegationResult` | Delegate stake; `params.Signature` likewise |
+| `SendZkapp(command)` | `*ZkappCommandResult` | Send a signed zkApp command (JSON) |
 | `UnlockAccount(publicKey, password)` | `string` | Unlock a keystore account so the node can send from it |
 | `SetSnarkWorker(publicKey)` | `string` | Set/unset SNARK worker |
 | `SetSnarkWorkFee(fee)` | `string` | Set SNARK work fee |
@@ -135,9 +151,9 @@ _, err = c.StopScheduledTransactions(ctx, handle)
 | `Request(ctx, query, vars, name)` | any document, sequenced and signed |
 
 A sequenced request is never repeated after a transport error, because the
-daemon may already have run it. `schema/itn_graphql_schema.json` is an
-introspection dump of the ITN schema (daemon `4.0.0-6965b50` devnet), and a
-test checks every document in `itn/queries.go` against it. The Rust SDK has the
+daemon may already have run it. The documents in `itn/queries.go` are those
+of `spec/itn-operations.graphql`, which mina-sdk-spec validates against the
+daemon's ITN schema. The Rust SDK has the
 same client (`mina_sdk::itn`, feature `itn`).
 
 ### Currency
@@ -216,7 +232,7 @@ go test -v -run Integration ./itn/
 
 **Account not found** -- The account may not exist on the network. `GetAccount` returns `*AccountNotFoundError` which you can check with `errors.As`.
 
-**Schema drift** -- If queries fail with unexpected GraphQL errors, the daemon version may have changed its schema. Run: `go run scripts/check_schema_drift.go --endpoint http://your-node:3085/graphql`
+**Schema drift** -- If queries fail with unexpected GraphQL errors, the daemon version may have changed its schema. Check the documents against your node with mina-sdk-spec: `python3 scripts/check.py --endpoint http://your-node:3085/graphql` (in a clone of [mina-sdk-spec](https://github.com/o1-labs/mina-sdk-spec)).
 
 ## License
 
