@@ -15,8 +15,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   run with `MINA_ITN_HARNESS=1`, and `CreateAccounts` also needs
   `MINA_ITN_FEE_PAYER`.
 - `spec/` is mina-sdk-spec v0.2.0.
-
-### Added
 - The common API of the Mina SDKs, from
   [mina-sdk-spec](https://github.com/o1-labs/mina-sdk-spec) v0.1.2: `spec/`
   is a copy at the tag in `spec/VERSION`. `spec_test.go` and
