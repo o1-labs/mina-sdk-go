@@ -188,3 +188,41 @@ func nonNil[T any](s []T) []T {
 	}
 	return s
 }
+
+// CreateAccountsDetails is the input of CreateAccounts.
+type CreateAccountsDetails struct {
+	// FeePayer is the base58 private key of the account that funds the new
+	// accounts.
+	FeePayer string
+	// NumAccounts is the number of new accounts.
+	NumAccounts int
+	// Fee of each zkApp command that creates accounts.
+	Fee mina.Currency
+	// Amount is divided among the new accounts; each account also pays the
+	// account creation fee out of its share.
+	Amount mina.Currency
+}
+
+func (d CreateAccountsDetails) vars() map[string]any {
+	return map[string]any{
+		"feePayer":    d.FeePayer,
+		"numAccounts": d.NumAccounts,
+		"fee":         d.Fee.NanominaString(),
+		"amount":      d.Amount.NanominaString(),
+	}
+}
+
+// CreatedAccount is a new account of CreateAccounts.
+type CreatedAccount struct {
+	PublicKey string `json:"publicKey"`
+	// PrivateKey is the base58 private key.
+	PrivateKey string `json:"privateKey"`
+}
+
+// CreatedAccounts is the result of CreateAccounts.
+type CreatedAccounts struct {
+	// Handle of the background job that funds the accounts; ScheduledTransactions
+	// lists it until the job ends.
+	Handle   string           `json:"handle"`
+	Accounts []CreatedAccount `json:"accounts"`
+}

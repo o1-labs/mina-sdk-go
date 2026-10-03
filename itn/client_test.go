@@ -44,7 +44,9 @@ type fakeDaemon struct {
 func (f *fakeDaemon) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	body, _ := io.ReadAll(r.Body)
 	auth := r.Header.Get("Authorization")
-	isAuth := strings.Contains(string(body), "auth {")
+	// The handshake is the request without sequence information; CommitID
+	// also selects auth, but sequenced.
+	isAuth := !strings.Contains(auth, "Sequencing")
 	f.mu.Lock()
 	f.reqs = append(f.reqs, seen{body: body, auth: auth, isAuth: isAuth})
 	f.mu.Unlock()
@@ -377,5 +379,78 @@ func TestKeyEncoding(t *testing.T) {
 	}
 	if s := k.String(); !strings.Contains(s, k.PublicKeyBase64()) || strings.Contains(s, k.Base64()) {
 		t.Errorf("String must show only the public key: %s", s)
+	}
+}
+
+// requestVars returns the variables of each sequenced request.
+func requestVars(f *fakeDaemon) []map[string]any {
+	var out []map[string]any
+	for _, r := range f.reqs {
+		if r.isAuth {
+			continue
+		}
+		var body struct {
+			Variables map[string]any `json:"variables"`
+		}
+		_ = json.Unmarshal(r.body, &body)
+		out = append(out, body.Variables)
+	}
+	return out
+}
+
+func TestHarnessSupport(t *testing.T) {
+	ctx := context.Background()
+	f, c := newFake(t, 0, func(body string) (int, any) {
+		switch {
+		case strings.Contains(body, "commitId"):
+			return data(map[string]any{"auth": map[string]any{"commitId": "abc123"}})
+		case strings.Contains(body, "scheduledTransactions"):
+			return data(map[string]any{"scheduledTransactions": []string{"h1", "h2"}})
+		case strings.Contains(body, "createAccounts"):
+			return data(map[string]any{"createAccounts": map[string]any{
+				"handle":   "h3",
+				"accounts": []map[string]any{{"publicKey": "B62qa", "privateKey": "EKa"}},
+			}})
+		case strings.Contains(body, "schedulePayments"):
+			return data(map[string]any{"schedulePayments": "h4"})
+		default:
+			return data(map[string]any{"scheduleZkappCommands": "h5"})
+		}
+	})
+	if id, err := c.CommitID(ctx); err != nil || id != "abc123" {
+		t.Fatalf("commit %q, err %v", id, err)
+	}
+	if hs, err := c.ScheduledTransactions(ctx); err != nil || len(hs) != 2 || hs[1] != "h2" {
+		t.Fatalf("handles %v, err %v", hs, err)
+	}
+	details := CreateAccountsDetails{
+		FeePayer: "EKfee", NumAccounts: 2,
+		Fee: mina.CurrencyFromNanomina(100), Amount: mina.CurrencyFromNanomina(5000),
+	}
+	created, err := c.CreateAccounts(ctx, details, "")
+	if err != nil || created.Handle != "h3" || created.Accounts[0].PrivateKey != "EKa" {
+		t.Fatalf("created %+v, err %v", created, err)
+	}
+	if _, err := c.CreateAccounts(ctx, details, "u1"); err != nil {
+		t.Fatal(err)
+	}
+	if h, err := c.SchedulePaymentsWithHandle(ctx, PaymentsDetails{}, "u2"); err != nil || h != "h4" {
+		t.Fatalf("handle %q, err %v", h, err)
+	}
+	if h, err := c.ScheduleZkappCommandsWithHandle(ctx, ZkappCommandsDetails{}, "u3"); err != nil || h != "h5" {
+		t.Fatalf("handle %q, err %v", h, err)
+	}
+
+	vars := requestVars(f)
+	// createAccounts: the handle is sent as null when empty.
+	if h, ok := vars[2]["handle"]; !ok || h != nil {
+		t.Errorf("createAccounts handle = %v (present %v), want null", h, ok)
+	}
+	input := vars[2]["input"].(map[string]any)
+	if input["feePayer"] != "EKfee" || input["numAccounts"] != float64(2) || input["fee"] != "100" || input["amount"] != "5000" {
+		t.Errorf("createAccounts input = %v", input)
+	}
+	if vars[3]["handle"] != "u1" || vars[4]["handle"] != "u2" || vars[5]["handle"] != "u3" {
+		t.Errorf("handles sent: %v %v %v", vars[3]["handle"], vars[4]["handle"], vars[5]["handle"])
 	}
 }

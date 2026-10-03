@@ -386,6 +386,84 @@ func (c *Client) SetZkappCommandLimit(ctx context.Context, limit *int) (*int, er
 	return r.ZkAppCommandLimit, nil
 }
 
+// The following methods need a daemon with MinaProtocol/mina#19616; older
+// daemons answer them with a GraphQL error. A handle is a UUID that the
+// caller chooses and records before the call. A call with the handle of a
+// running scheduler starts nothing and returns that handle, so these calls
+// may be repeated after a transport error, unlike the others.
+
+// CommitID returns the git commit of the daemon's build.
+func (c *Client) CommitID(ctx context.Context) (string, error) {
+	data, err := c.Request(ctx, QueryCommitID, nil, "itn_commit_id")
+	if err != nil {
+		return "", err
+	}
+	var r struct {
+		Auth struct {
+			CommitID string `json:"commitId"`
+		} `json:"auth"`
+	}
+	if err := json.Unmarshal(data, &r); err != nil {
+		return "", fmt.Errorf("itn_commit_id: %w", err)
+	}
+	return r.Auth.CommitID, nil
+}
+
+// ScheduledTransactions returns the handles of the running payment and zkApp
+// schedulers and account-creation jobs.
+func (c *Client) ScheduledTransactions(ctx context.Context) ([]string, error) {
+	data, err := c.Request(ctx, QueryScheduledTransactions, nil, "itn_scheduled_transactions")
+	if err != nil {
+		return nil, err
+	}
+	var r struct {
+		ScheduledTransactions []string `json:"scheduledTransactions"`
+	}
+	if err := json.Unmarshal(data, &r); err != nil {
+		return nil, fmt.Errorf("itn_scheduled_transactions: %w", err)
+	}
+	return r.ScheduledTransactions, nil
+}
+
+// SchedulePaymentsWithHandle starts sending payments under handle and
+// returns it.
+func (c *Client) SchedulePaymentsWithHandle(ctx context.Context, d PaymentsDetails, handle string) (string, error) {
+	return c.stringMutation(ctx, MutationSchedulePaymentsWithHandle,
+		map[string]any{"input": d.vars(), "handle": handle}, "schedulePayments", "itn_schedule_payments_with_handle")
+}
+
+// ScheduleZkappCommandsWithHandle starts sending zkApp commands under handle
+// and returns it.
+func (c *Client) ScheduleZkappCommandsWithHandle(ctx context.Context, d ZkappCommandsDetails, handle string) (string, error) {
+	return c.stringMutation(ctx, MutationScheduleZkappCommandsWithHandle,
+		map[string]any{"input": d.vars(), "handle": handle}, "scheduleZkappCommands", "itn_schedule_zkapp_commands_with_handle")
+}
+
+// CreateAccounts creates d.NumAccounts accounts and funds them in the
+// background; it returns the keys at once. Wait until ScheduledTransactions
+// no longer lists the returned handle. An empty handle lets the daemon choose
+// one.
+func (c *Client) CreateAccounts(ctx context.Context, d CreateAccountsDetails, handle string) (*CreatedAccounts, error) {
+	vars := map[string]any{"input": d.vars(), "handle": nil}
+	if handle != "" {
+		vars["handle"] = handle
+	}
+	data, err := c.Request(ctx, MutationCreateAccounts, vars, "itn_create_accounts")
+	if err != nil {
+		return nil, err
+	}
+	var r struct {
+		CreateAccounts *CreatedAccounts `json:"createAccounts"`
+	}
+	if err := json.Unmarshal(data, &r); err != nil {
+		return nil, fmt.Errorf("itn_create_accounts: %w", err)
+	}
+	if r.CreateAccounts == nil {
+		return nil, fmt.Errorf("itn_create_accounts: missing field %q", "createAccounts")
+	}
+	return r.CreateAccounts, nil
+}
+
 func (c *Client) stringMutation(ctx context.Context, query string, vars map[string]any, field, queryName string) (string, error) {
 	data, err := c.Request(ctx, query, vars, queryName)
 	if err != nil {
