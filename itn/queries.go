@@ -78,4 +78,42 @@ const (
 	MutationZkappCommandLimit = `mutation ZkappCommandLimit($limit: Int) {
   zkAppCommandLimit(limit: $limit)
 }`
+
+	// QueryCommitID returns the daemon's git commit. It needs a daemon with
+	// MinaProtocol/mina#19616; older daemons answer with a GraphQL error.
+	QueryCommitID = `query CommitId {
+  auth {
+    commitId
+  }
+}`
+
+	// QueryScheduledTransactions returns the handles of the running payment
+	// and zkApp schedulers and account-creation jobs (mina#19616).
+	QueryScheduledTransactions = `query ScheduledTransactions {
+  scheduledTransactions
+}`
+
+	// MutationSchedulePaymentsWithHandle starts sending payments under a
+	// handle that the caller chose (mina#19616).
+	MutationSchedulePaymentsWithHandle = `mutation SchedulePaymentsWithHandle($input: PaymentsDetails!, $handle: String!) {
+  schedulePayments(input: $input, handle: $handle)
+}`
+
+	// MutationScheduleZkappCommandsWithHandle starts sending zkApp commands
+	// under a handle that the caller chose (mina#19616).
+	MutationScheduleZkappCommandsWithHandle = `mutation ScheduleZkappCommandsWithHandle($input: ZkappCommandsDetails!, $handle: String!) {
+  scheduleZkappCommands(input: $input, handle: $handle)
+}`
+
+	// MutationCreateAccounts creates and funds new accounts in the
+	// background under a handle (mina#19616).
+	MutationCreateAccounts = `mutation CreateAccounts($input: CreateAccountsDetails!, $handle: String) {
+  createAccounts(input: $input, handle: $handle) {
+    handle
+    accounts {
+      publicKey
+      privateKey
+    }
+  }
+}`
 )

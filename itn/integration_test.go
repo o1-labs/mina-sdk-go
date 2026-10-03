@@ -2,9 +2,12 @@ package itn
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
+	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	mina "github.com/MinaProtocol/mina-sdk-go"
 )
@@ -122,4 +125,84 @@ func TestIntegrationUpdateGatingEmpty(t *testing.T) {
 	if _, err := NewClient(uri, key).UpdateGating(context.Background(), GatingUpdate{}); err != nil {
 		t.Fatal(err)
 	}
+}
+
+// Operations for harness support (MinaProtocol/mina#19616). They run only with
+// MINA_ITN_HARNESS=1, because older daemons do not have them.
+func harnessFromEnv(t *testing.T) (*Client, context.Context) {
+	t.Helper()
+	uri, key := itnFromEnv(t)
+	if os.Getenv("MINA_ITN_HARNESS") != "1" {
+		t.Skip("MINA_ITN_HARNESS=1 not set")
+	}
+	return NewClient(uri, key), context.Background()
+}
+
+func TestIntegrationCommitIDAndListing(t *testing.T) {
+	c, ctx := harnessFromEnv(t)
+	if id, err := c.CommitID(ctx); err != nil || len(id) < 7 {
+		t.Fatalf("commit %q, err %v", id, err)
+	}
+	if _, err := c.ScheduledTransactions(ctx); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// CreateAccounts sends transactions, so it also needs MINA_ITN_FEE_PAYER: the
+// base58 private key of a funded account.
+func TestIntegrationCreateAccounts(t *testing.T) {
+	c, ctx := harnessFromEnv(t)
+	feePayer := os.Getenv("MINA_ITN_FEE_PAYER")
+	if feePayer == "" {
+		t.Skip("MINA_ITN_FEE_PAYER not set")
+	}
+	handle := newUUID(t)
+	d := CreateAccountsDetails{
+		FeePayer: feePayer, NumAccounts: 3,
+		Fee: mina.MustCurrencyFromString("0.1"), Amount: mina.MustCurrencyFromString("6"),
+	}
+	created, err := c.CreateAccounts(ctx, d, handle)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if created.Handle != handle || len(created.Accounts) != 3 {
+		t.Fatalf("created %+v", created)
+	}
+	again, err := c.CreateAccounts(ctx, d, handle)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if again.Accounts[0].PublicKey != created.Accounts[0].PublicKey {
+		t.Error("a repeat with the same handle created other accounts")
+	}
+	deadline := time.Now().Add(10 * time.Minute)
+	for {
+		handles, err := c.ScheduledTransactions(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		listed := false
+		for _, h := range handles {
+			listed = listed || h == handle
+		}
+		if !listed {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("handle %s still listed after 10 minutes", handle)
+		}
+		time.Sleep(5 * time.Second)
+	}
+}
+
+// newUUID returns a random (version 4) UUID.
+func newUUID(t *testing.T) string {
+	t.Helper()
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		t.Fatal(err)
+	}
+	b[6] = b[6]&0x0f | 0x40
+	b[8] = b[8]&0x3f | 0x80
+	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:16])
 }

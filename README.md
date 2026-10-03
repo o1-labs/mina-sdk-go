@@ -150,6 +150,21 @@ _, err = c.StopScheduledTransactions(ctx, handle)
 | `SetZkappCommandLimit(ctx, limit)` | `zkAppCommandLimit` |
 | `Request(ctx, query, vars, name)` | any document, sequenced and signed |
 
+These need a daemon with MinaProtocol/mina#19616; older daemons answer them
+with a GraphQL error:
+
+| Method | GraphQL |
+|--------|---------|
+| `CommitID(ctx)` | `auth { commitId }`: the daemon's git commit |
+| `ScheduledTransactions(ctx)` | `scheduledTransactions`: handles of the running schedulers |
+| `SchedulePaymentsWithHandle(ctx, PaymentsDetails, handle)` | `schedulePayments` with a caller-chosen handle |
+| `ScheduleZkappCommandsWithHandle(ctx, ZkappCommandsDetails, handle)` | `scheduleZkappCommands` with a caller-chosen handle |
+| `CreateAccounts(ctx, CreateAccountsDetails, handle)` | `createAccounts`: keys at once, funding in the background under the handle |
+
+A handle is a UUID that the caller chooses and records before the call. A
+call with the handle of a running scheduler starts nothing and returns that
+handle, so these calls may be repeated after a transport error.
+
 A sequenced request is never repeated after a transport error, because the
 daemon may already have run it. The documents in `itn/queries.go` are those
 of `spec/itn-operations.graphql`, which mina-sdk-spec validates against the

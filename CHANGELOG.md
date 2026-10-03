@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- ITN methods for harness support, which need a daemon with
+  MinaProtocol/mina#19616: `CommitID`, `ScheduledTransactions`,
+  `SchedulePaymentsWithHandle`, `ScheduleZkappCommandsWithHandle` and
+  `CreateAccounts` (`CreateAccountsDetails`, `CreatedAccounts`). Live tests
+  run with `MINA_ITN_HARNESS=1`, and `CreateAccounts` also needs
+  `MINA_ITN_FEE_PAYER`.
+- `spec/` is mina-sdk-spec v0.2.0.
 - The common API of the Mina SDKs, from
   [mina-sdk-spec](https://github.com/o1-labs/mina-sdk-spec) v0.1.2: `spec/`
   is a copy at the tag in `spec/VERSION`. `spec_test.go` and

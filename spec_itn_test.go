@@ -21,5 +21,10 @@ func TestITNQueriesAreTheSpecDocuments(t *testing.T) {
 		itn.MutationUpdateGating,
 		itn.MutationStopDaemon,
 		itn.MutationZkappCommandLimit,
+		itn.QueryCommitID,
+		itn.QueryScheduledTransactions,
+		itn.MutationSchedulePaymentsWithHandle,
+		itn.MutationScheduleZkappCommandsWithHandle,
+		itn.MutationCreateAccounts,
 	})
 }
