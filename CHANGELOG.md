@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0-rc.1] - 2026-10-12
+
+From this release on, the four Mina SDKs and mina-sdk-spec have the same
+version number: SDK x.y.z implements mina-sdk-spec x.y.z. The number jumps
+because mina-sdk-go and mina-sdk-js were already at 0.3.0.
+
 ### Added
 - ITN methods for harness support, which need a daemon with
   MinaProtocol/mina#19616: `CommitID`, `ScheduledTransactions`,
@@ -14,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `CreateAccounts` (`CreateAccountsDetails`, `CreatedAccounts`). Live tests
   run with `MINA_ITN_HARNESS=1`, and `CreateAccounts` also needs
   `MINA_ITN_FEE_PAYER`.
-- `spec/` is mina-sdk-spec v0.2.0.
+- `spec/` is mina-sdk-spec v0.4.0-rc.1.
 - The common API of the Mina SDKs, from
   [mina-sdk-spec](https://github.com/o1-labs/mina-sdk-spec) v0.1.2: `spec/`
   is a copy at the tag in `spec/VERSION`. `spec_test.go` and
