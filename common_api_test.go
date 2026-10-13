@@ -417,3 +417,96 @@ func TestTransactionStatusAndSmallQueries(t *testing.T) {
 		t.Errorf("snark pool = %+v", work)
 	}
 }
+
+func TestBlockZkappCommandsAndSnarkJobs(t *testing.T) {
+	block := blockJSON()
+	block["snarkJobs"] = []any{map[string]any{"prover": "B62qprover", "fee": "1000", "workIds": []any{"7", 8}}}
+	update := map[string]any{
+		"authorization": map[string]any{"signature": "sig", "proof": nil},
+		"body":          map[string]any{"publicKey": "B62qzk", "balanceChange": map[string]any{"magnitude": "5", "sgn": "Negative"}},
+	}
+	block["transactions"].(map[string]any)["zkappCommands"] = []any{map[string]any{
+		"id": "zkid", "hash": "zkhash",
+		"failureReason": []any{map[string]any{"index": "1", "failures": []any{"Cancelled"}}},
+		"zkappCommand": map[string]any{
+			"memo": "E4Y",
+			"feePayer": map[string]any{
+				"authorization": "sig",
+				"body":          map[string]any{"publicKey": "B62qfp", "fee": "100", "nonce": 3, "validUntil": nil},
+			},
+			"accountUpdates": []any{update},
+		},
+	}}
+	client, _ := mockDaemon(t, map[string]any{"block": block})
+	h := 12
+	info, err := client.GetBlock(BlockRef{Height: &h})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(info.SnarkJobs) != 1 || info.SnarkJobs[0].Prover != "B62qprover" || !reflect.DeepEqual(info.SnarkJobs[0].WorkIDs, []int{7, 8}) {
+		t.Fatalf("snark jobs: %+v", info.SnarkJobs)
+	}
+	if len(info.ZkappCommands) != 1 {
+		t.Fatalf("zkapp commands: %+v", info.ZkappCommands)
+	}
+	z := info.ZkappCommands[0]
+	if z.ID != "zkid" || z.Memo != "E4Y" || z.FeePayer.PublicKey != "B62qfp" || z.FeePayer.Nonce != 3 || z.FeePayer.ValidUntil != nil || z.FeePayerAuthorization != "sig" {
+		t.Fatalf("zkapp command: %+v", z)
+	}
+	if len(z.FailureReason) != 1 || *z.FailureReason[0].Index != 1 || z.FailureReason[0].Failures[0] != "Cancelled" {
+		t.Fatalf("failure reason: %+v", z.FailureReason)
+	}
+	var got map[string]any
+	if err := json.Unmarshal(z.AccountUpdates[0], &got); err != nil || !reflect.DeepEqual(got, update) {
+		t.Fatalf("account update: %s (%v)", z.AccountUpdates[0], err)
+	}
+
+	// Without the fields (an older daemon, or a block without zkApps) the
+	// slices are nil.
+	client, _ = mockDaemon(t, map[string]any{"block": blockJSON()})
+	info, err = client.GetBlock(BlockRef{Height: &h})
+	if err != nil || info.ZkappCommands != nil || info.SnarkJobs != nil {
+		t.Fatalf("plain block: %v %+v %+v", err, info.ZkappCommands, info.SnarkJobs)
+	}
+}
+
+func TestDaemonStatusConsensusTimeAndPeer(t *testing.T) {
+	client, _ := mockDaemon(t, map[string]any{"daemonStatus": map[string]any{
+		"syncStatus": "SYNCED", "stateHash": "3NK", "commitId": "abc", "peers": []any{},
+		"globalSlotSinceGenesisBestTip": "4200",
+		"consensusTimeNow":              map[string]any{"epoch": "1", "slot": "5", "globalSlot": "4201", "startTime": "1700000000000", "endTime": "1700000020000"},
+		"addrsAndPorts": map[string]any{
+			"externalIp": "10.0.0.1", "bindIp": "0.0.0.0", "clientPort": 8301, "libp2pPort": 8302,
+			"peer": map[string]any{"host": "10.0.0.1", "libp2pPort": 8302, "peerId": "12D3KooW"},
+		},
+	}})
+	status, err := client.GetDaemonStatus()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if status.GlobalSlotSinceGenesisBestTip == nil || *status.GlobalSlotSinceGenesisBestTip != 4200 {
+		t.Fatalf("best tip slot: %v", status.GlobalSlotSinceGenesisBestTip)
+	}
+	want := &ConsensusTime{Epoch: 1, Slot: 5, GlobalSlot: 4201, StartTime: "1700000000000", EndTime: "1700000020000"}
+	if !reflect.DeepEqual(status.ConsensusTimeNow, want) {
+		t.Fatalf("consensus time: %+v", status.ConsensusTimeNow)
+	}
+	if p := status.AddrsAndPorts.Peer; p == nil || p.PeerID != "12D3KooW" || p.Port != 8302 {
+		t.Fatalf("peer: %+v", status.AddrsAndPorts.Peer)
+	}
+}
+
+func TestPooledUserCommandsTokens(t *testing.T) {
+	client, _ := mockDaemon(t, map[string]any{"pooledUserCommands": []any{map[string]any{
+		"id": "i", "hash": "h", "kind": "PAYMENT", "nonce": 1, "amount": "1", "fee": "1",
+		"validUntil": "4294967295", "token": "wSHV2S", "feeToken": "wSHV2S", "from": "a", "to": "b",
+		"source": map[string]any{"publicKey": "a"}, "receiver": map[string]any{"publicKey": "b"}, "memo": "", "failureReason": nil,
+	}}})
+	cmds, err := client.GetPooledUserCommands("")
+	if err != nil || len(cmds) != 1 {
+		t.Fatal(err, cmds)
+	}
+	if cmds[0].ValidUntil == nil || *cmds[0].ValidUntil != "4294967295" || cmds[0].Token != "wSHV2S" || cmds[0].FeeToken != "wSHV2S" {
+		t.Fatalf("tokens: %+v", cmds[0])
+	}
+}

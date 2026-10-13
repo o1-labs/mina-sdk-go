@@ -91,6 +91,18 @@ type AddrsAndPorts struct {
 	BindIP     string
 	ClientPort int
 	Libp2pPort int
+	// Peer is the daemon's own libp2p peer; nil when it has none.
+	Peer *PeerInfo
+}
+
+// ConsensusTime is a consensus time: an epoch and slot with the slot's
+// wall-clock bounds (milliseconds since the Unix epoch, as decimal strings).
+type ConsensusTime struct {
+	Epoch      int
+	Slot       int
+	GlobalSlot int
+	StartTime  string
+	EndTime    string
 }
 
 // DaemonStatus represents the status of the Mina daemon.
@@ -110,6 +122,11 @@ type DaemonStatus struct {
 	BlockProductionKeys                   []string
 	CoinbaseReceiver                      string
 	AddrsAndPorts                         *AddrsAndPorts
+	// GlobalSlotSinceGenesisBestTip is the best tip's global slot since
+	// genesis; nil when the daemon has no best tip.
+	GlobalSlotSinceGenesisBestTip *int
+	// ConsensusTimeNow is the consensus time of now, on the daemon's clock.
+	ConsensusTimeNow *ConsensusTime
 }
 
 // DaemonMetrics are the daemon's metrics (daemonStatus.metrics).
@@ -158,6 +175,27 @@ type BlockInfo struct {
 	CoinbaseReceiverAccount string
 	FeeTransfers            []FeeTransfer
 	UserCommands            []BlockTransaction
+	// ZkappCommands are the zkApp commands in the block, with their account
+	// updates.
+	ZkappCommands []BlockZkappCommand
+	// SnarkJobs is the completed SNARK work in the block.
+	SnarkJobs []CompletedWork
+}
+
+// BlockZkappCommand is a zkApp command in a block.
+type BlockZkappCommand struct {
+	ID       string
+	Hash     string
+	Memo     string
+	FeePayer ZkappFeePayer
+	// FeePayerAuthorization is the fee payer's signature.
+	FeePayerAuthorization string
+	// AccountUpdates are the command's account updates as the daemon
+	// reports them (spec/SPEC.md "AccountUpdate"), kept as JSON.
+	AccountUpdates []json.RawMessage
+	// FailureReason has one entry for each failing account update; nil if
+	// the command did not fail.
+	FailureReason []ZkappFailure
 }
 
 // FeeTransfer is a fee transfer in a block.
@@ -209,12 +247,19 @@ type SignatureInput struct {
 
 // PooledUserCommand represents a pending transaction in the mempool.
 type PooledUserCommand struct {
-	ID            string  `json:"id"`
-	Hash          string  `json:"hash"`
-	Kind          string  `json:"kind"`
-	Nonce         string  `json:"nonce"`
-	Amount        string  `json:"amount"`
-	Fee           string  `json:"fee"`
+	ID     string `json:"id"`
+	Hash   string `json:"hash"`
+	Kind   string `json:"kind"`
+	Nonce  string `json:"nonce"`
+	Amount string `json:"amount"`
+	Fee    string `json:"fee"`
+	// ValidUntil is the last global slot (since genesis) the command is
+	// valid in; nil when the daemon reports none.
+	ValidUntil *string `json:"validUntil"`
+	// Token is the token the command moves; FeeToken the token the fee is
+	// paid in.
+	Token         string  `json:"token"`
+	FeeToken      string  `json:"feeToken"`
 	From          string  `json:"from"`
 	To            string  `json:"to"`
 	Source        string  `json:"-"`
@@ -232,6 +277,9 @@ type pooledUserCommandRaw struct {
 	Nonce         json.Number `json:"nonce"`
 	Amount        string      `json:"amount"`
 	Fee           string      `json:"fee"`
+	ValidUntil    scalar      `json:"validUntil"`
+	Token         string      `json:"token"`
+	FeeToken      string      `json:"feeToken"`
 	From          string      `json:"from"`
 	To            string      `json:"to"`
 	Source        publicKeyOf `json:"source"`

@@ -26,6 +26,14 @@ const queryDaemonStatus = `query DaemonStatus {
     catchupStatus
     blockProductionKeys
     coinbaseReceiver
+    globalSlotSinceGenesisBestTip
+    consensusTimeNow {
+      epoch
+      slot
+      globalSlot
+      startTime
+      endTime
+    }
     peers {
       peerId
       host
@@ -36,6 +44,11 @@ const queryDaemonStatus = `query DaemonStatus {
       bindIp
       clientPort
       libp2pPort
+      peer {
+        host
+        libp2pPort
+        peerId
+      }
     }
   }
 }`
@@ -143,6 +156,11 @@ const queryBestChain = `query BestChain($maxLength: Int) {
         stagedLedgerHash
       }
     }
+    snarkJobs {
+      prover
+      fee
+      workIds
+    }
     transactions {
       coinbase
       coinbaseReceiverAccount {
@@ -168,6 +186,165 @@ const queryBestChain = `query BestChain($maxLength: Int) {
         fee
         memo
         failureReason
+      }
+      zkappCommands {
+        id
+        hash
+        failureReason {
+          index
+          failures
+        }
+        zkappCommand {
+          memo
+          feePayer {
+            authorization
+            body {
+              publicKey
+              fee
+              nonce
+              validUntil
+            }
+          }
+          accountUpdates {
+            authorization {
+              signature
+              proof
+            }
+            body {
+              publicKey
+              tokenId
+              callDepth
+              callData
+              actions
+              events
+              incrementNonce
+              useFullCommitment
+              implicitAccountCreationFee
+              balanceChange {
+                magnitude
+                sgn
+              }
+              mayUseToken {
+                parentsOwnToken
+                inheritFromParent
+              }
+              authorizationKind {
+                isSigned
+                isProved
+                verificationKeyHash
+              }
+              update {
+                appState
+                delegate
+                zkappUri
+                votingFor
+                tokenSymbol
+                verificationKey {
+                  hash
+                  data
+                }
+                timing {
+                  initialMinimumBalance
+                  cliffTime
+                  cliffAmount
+                  vestingPeriod
+                  vestingIncrement
+                }
+                permissions {
+                  editState
+                  send
+                  receive
+                  access
+                  setDelegate
+                  setPermissions
+                  setVerificationKey {
+                    auth
+                    txnVersion
+                  }
+                  setZkappUri
+                  editActionState
+                  setTokenSymbol
+                  incrementNonce
+                  setVotingFor
+                  setTiming
+                }
+              }
+              preconditions {
+                validWhile {
+                  lower
+                  upper
+                }
+                network {
+                  snarkedLedgerHash
+                  blockchainLength {
+                    lower
+                    upper
+                  }
+                  minWindowDensity {
+                    lower
+                    upper
+                  }
+                  totalCurrency {
+                    lower
+                    upper
+                  }
+                  globalSlotSinceGenesis {
+                    lower
+                    upper
+                  }
+                  stakingEpochData {
+                    seed
+                    startCheckpoint
+                    lockCheckpoint
+                    epochLength {
+                      lower
+                      upper
+                    }
+                    ledger {
+                      hash
+                      totalCurrency {
+                        lower
+                        upper
+                      }
+                    }
+                  }
+                  nextEpochData {
+                    seed
+                    startCheckpoint
+                    lockCheckpoint
+                    epochLength {
+                      lower
+                      upper
+                    }
+                    ledger {
+                      hash
+                      totalCurrency {
+                        lower
+                        upper
+                      }
+                    }
+                  }
+                }
+                account {
+                  balance {
+                    lower
+                    upper
+                  }
+                  nonce {
+                    lower
+                    upper
+                  }
+                  receiptChainHash
+                  delegate
+                  state
+                  actionState
+                  provedState
+                  isNew
+                }
+              }
+            }
+          }
+        }
       }
     }
   }
@@ -210,6 +387,11 @@ const queryGenesisBlock = `query GenesisBlock {
         stagedLedgerHash
       }
     }
+    snarkJobs {
+      prover
+      fee
+      workIds
+    }
     transactions {
       coinbase
       coinbaseReceiverAccount {
@@ -235,6 +417,165 @@ const queryGenesisBlock = `query GenesisBlock {
         fee
         memo
         failureReason
+      }
+      zkappCommands {
+        id
+        hash
+        failureReason {
+          index
+          failures
+        }
+        zkappCommand {
+          memo
+          feePayer {
+            authorization
+            body {
+              publicKey
+              fee
+              nonce
+              validUntil
+            }
+          }
+          accountUpdates {
+            authorization {
+              signature
+              proof
+            }
+            body {
+              publicKey
+              tokenId
+              callDepth
+              callData
+              actions
+              events
+              incrementNonce
+              useFullCommitment
+              implicitAccountCreationFee
+              balanceChange {
+                magnitude
+                sgn
+              }
+              mayUseToken {
+                parentsOwnToken
+                inheritFromParent
+              }
+              authorizationKind {
+                isSigned
+                isProved
+                verificationKeyHash
+              }
+              update {
+                appState
+                delegate
+                zkappUri
+                votingFor
+                tokenSymbol
+                verificationKey {
+                  hash
+                  data
+                }
+                timing {
+                  initialMinimumBalance
+                  cliffTime
+                  cliffAmount
+                  vestingPeriod
+                  vestingIncrement
+                }
+                permissions {
+                  editState
+                  send
+                  receive
+                  access
+                  setDelegate
+                  setPermissions
+                  setVerificationKey {
+                    auth
+                    txnVersion
+                  }
+                  setZkappUri
+                  editActionState
+                  setTokenSymbol
+                  incrementNonce
+                  setVotingFor
+                  setTiming
+                }
+              }
+              preconditions {
+                validWhile {
+                  lower
+                  upper
+                }
+                network {
+                  snarkedLedgerHash
+                  blockchainLength {
+                    lower
+                    upper
+                  }
+                  minWindowDensity {
+                    lower
+                    upper
+                  }
+                  totalCurrency {
+                    lower
+                    upper
+                  }
+                  globalSlotSinceGenesis {
+                    lower
+                    upper
+                  }
+                  stakingEpochData {
+                    seed
+                    startCheckpoint
+                    lockCheckpoint
+                    epochLength {
+                      lower
+                      upper
+                    }
+                    ledger {
+                      hash
+                      totalCurrency {
+                        lower
+                        upper
+                      }
+                    }
+                  }
+                  nextEpochData {
+                    seed
+                    startCheckpoint
+                    lockCheckpoint
+                    epochLength {
+                      lower
+                      upper
+                    }
+                    ledger {
+                      hash
+                      totalCurrency {
+                        lower
+                        upper
+                      }
+                    }
+                  }
+                }
+                account {
+                  balance {
+                    lower
+                    upper
+                  }
+                  nonce {
+                    lower
+                    upper
+                  }
+                  receiptChainHash
+                  delegate
+                  state
+                  actionState
+                  provedState
+                  isNew
+                }
+              }
+            }
+          }
+        }
       }
     }
   }
@@ -277,6 +618,11 @@ const queryBlock = `query Block($stateHash: String, $height: Int) {
         stagedLedgerHash
       }
     }
+    snarkJobs {
+      prover
+      fee
+      workIds
+    }
     transactions {
       coinbase
       coinbaseReceiverAccount {
@@ -303,6 +649,165 @@ const queryBlock = `query Block($stateHash: String, $height: Int) {
         memo
         failureReason
       }
+      zkappCommands {
+        id
+        hash
+        failureReason {
+          index
+          failures
+        }
+        zkappCommand {
+          memo
+          feePayer {
+            authorization
+            body {
+              publicKey
+              fee
+              nonce
+              validUntil
+            }
+          }
+          accountUpdates {
+            authorization {
+              signature
+              proof
+            }
+            body {
+              publicKey
+              tokenId
+              callDepth
+              callData
+              actions
+              events
+              incrementNonce
+              useFullCommitment
+              implicitAccountCreationFee
+              balanceChange {
+                magnitude
+                sgn
+              }
+              mayUseToken {
+                parentsOwnToken
+                inheritFromParent
+              }
+              authorizationKind {
+                isSigned
+                isProved
+                verificationKeyHash
+              }
+              update {
+                appState
+                delegate
+                zkappUri
+                votingFor
+                tokenSymbol
+                verificationKey {
+                  hash
+                  data
+                }
+                timing {
+                  initialMinimumBalance
+                  cliffTime
+                  cliffAmount
+                  vestingPeriod
+                  vestingIncrement
+                }
+                permissions {
+                  editState
+                  send
+                  receive
+                  access
+                  setDelegate
+                  setPermissions
+                  setVerificationKey {
+                    auth
+                    txnVersion
+                  }
+                  setZkappUri
+                  editActionState
+                  setTokenSymbol
+                  incrementNonce
+                  setVotingFor
+                  setTiming
+                }
+              }
+              preconditions {
+                validWhile {
+                  lower
+                  upper
+                }
+                network {
+                  snarkedLedgerHash
+                  blockchainLength {
+                    lower
+                    upper
+                  }
+                  minWindowDensity {
+                    lower
+                    upper
+                  }
+                  totalCurrency {
+                    lower
+                    upper
+                  }
+                  globalSlotSinceGenesis {
+                    lower
+                    upper
+                  }
+                  stakingEpochData {
+                    seed
+                    startCheckpoint
+                    lockCheckpoint
+                    epochLength {
+                      lower
+                      upper
+                    }
+                    ledger {
+                      hash
+                      totalCurrency {
+                        lower
+                        upper
+                      }
+                    }
+                  }
+                  nextEpochData {
+                    seed
+                    startCheckpoint
+                    lockCheckpoint
+                    epochLength {
+                      lower
+                      upper
+                    }
+                    ledger {
+                      hash
+                      totalCurrency {
+                        lower
+                        upper
+                      }
+                    }
+                  }
+                }
+                account {
+                  balance {
+                    lower
+                    upper
+                  }
+                  nonce {
+                    lower
+                    upper
+                  }
+                  receiptChainHash
+                  delegate
+                  state
+                  actionState
+                  provedState
+                  isNew
+                }
+              }
+            }
+          }
+        }
+      }
     }
   }
 }`
@@ -323,6 +828,9 @@ const queryPooledUserCommands = `query PooledUserCommands($publicKey: PublicKey)
     nonce
     amount
     fee
+    validUntil
+    token
+    feeToken
     from
     to
     source {
