@@ -201,11 +201,20 @@ func (c *Client) GetDaemonStatus() (*DaemonStatus, error) {
 			BlockProductionKeys                   []string   `json:"blockProductionKeys"`
 			CoinbaseReceiver                      *string    `json:"coinbaseReceiver"`
 			Peers                                 []peerNode `json:"peers"`
-			AddrsAndPorts                         *struct {
-				ExternalIP string `json:"externalIp"`
-				BindIP     string `json:"bindIp"`
-				ClientPort int    `json:"clientPort"`
-				Libp2pPort int    `json:"libp2pPort"`
+			GlobalSlotSinceGenesisBestTip         scalar     `json:"globalSlotSinceGenesisBestTip"`
+			ConsensusTimeNow                      *struct {
+				Epoch      scalar `json:"epoch"`
+				Slot       scalar `json:"slot"`
+				GlobalSlot scalar `json:"globalSlot"`
+				StartTime  scalar `json:"startTime"`
+				EndTime    scalar `json:"endTime"`
+			} `json:"consensusTimeNow"`
+			AddrsAndPorts *struct {
+				ExternalIP string    `json:"externalIp"`
+				BindIP     string    `json:"bindIp"`
+				ClientPort int       `json:"clientPort"`
+				Libp2pPort int       `json:"libp2pPort"`
+				Peer       *peerNode `json:"peer"`
 			} `json:"addrsAndPorts"`
 		} `json:"daemonStatus"`
 	}
@@ -237,6 +246,19 @@ func (c *Client) GetDaemonStatus() (*DaemonStatus, error) {
 			BindIP:     a.BindIP,
 			ClientPort: a.ClientPort,
 			Libp2pPort: a.Libp2pPort,
+		}
+		if p := a.Peer; p != nil {
+			status.AddrsAndPorts.Peer = &PeerInfo{PeerID: p.PeerID, Host: p.Host, Port: p.Libp2pPort}
+		}
+	}
+	status.GlobalSlotSinceGenesisBestTip = ds.GlobalSlotSinceGenesisBestTip.OptInt()
+	if n := ds.ConsensusTimeNow; n != nil {
+		status.ConsensusTimeNow = &ConsensusTime{
+			Epoch:      n.Epoch.Int(),
+			Slot:       n.Slot.Int(),
+			GlobalSlot: n.GlobalSlot.Int(),
+			StartTime:  n.StartTime.String(),
+			EndTime:    n.EndTime.String(),
 		}
 	}
 	return status, nil
@@ -465,7 +487,13 @@ type blockNode struct {
 			commandNode
 			FailureReason *string `json:"failureReason"`
 		} `json:"userCommands"`
+		ZkappCommands []blockZkappNode `json:"zkappCommands"`
 	} `json:"transactions"`
+	SnarkJobs []struct {
+		Prover  string   `json:"prover"`
+		Fee     scalar   `json:"fee"`
+		WorkIDs []scalar `json:"workIds"`
+	} `json:"snarkJobs"`
 	ProtocolState struct {
 		PreviousStateHash string `json:"previousStateHash"`
 		ConsensusState    struct {
@@ -536,6 +564,24 @@ func (b blockNode) toBlockInfo() (BlockInfo, error) {
 			return BlockInfo{}, err
 		}
 		info.FeeTransfers[i] = FeeTransfer{Recipient: f.Recipient, Fee: fee, Type: f.Type}
+	}
+	for _, z := range b.Transactions.ZkappCommands {
+		cmd, err := z.toBlockZkappCommand()
+		if err != nil {
+			return BlockInfo{}, err
+		}
+		info.ZkappCommands = append(info.ZkappCommands, cmd)
+	}
+	for _, w := range b.SnarkJobs {
+		fee, err := w.Fee.Currency("snarkJobs.fee")
+		if err != nil {
+			return BlockInfo{}, err
+		}
+		ids := make([]int, len(w.WorkIDs))
+		for i, id := range w.WorkIDs {
+			ids[i] = id.Int()
+		}
+		info.SnarkJobs = append(info.SnarkJobs, CompletedWork{Prover: w.Prover, Fee: fee, WorkIDs: ids})
 	}
 	for i, u := range b.Transactions.UserCommands {
 		amount, err := u.Amount.Currency("userCommands.amount")
@@ -714,6 +760,11 @@ func (c *Client) GetPooledUserCommands(publicKey string) ([]PooledUserCommand, e
 			Fee: raw.Fee, From: raw.From, To: raw.To,
 			Source: raw.Source.PublicKey, Receiver: raw.Receiver.PublicKey,
 			Memo: raw.Memo, FailureReason: raw.FailureReason,
+			Token: raw.Token, FeeToken: raw.FeeToken,
+		}
+		if !raw.ValidUntil.isNull() {
+			v := raw.ValidUntil.String()
+			cmds[i].ValidUntil = &v
 		}
 	}
 	return cmds, nil
@@ -875,6 +926,9 @@ type SendPaymentParams struct {
 	Fee      Currency
 	Memo     string // optional
 	Nonce    *int   // optional explicit nonce
+	// ValidUntil is the last global slot (since genesis) the payment is
+	// valid in; a payment signed with one must be sent with the same value.
+	ValidUntil *int
 	// Signature is optional: a signature made outside the daemon. Without it
 	// the daemon signs with the sender's key, which must be unlocked.
 	Signature *SignatureInput
@@ -898,6 +952,9 @@ func (c *Client) SendPayment(params SendPaymentParams) (*SendPaymentResult, erro
 	}
 	if params.Nonce != nil {
 		input["nonce"] = strconv.Itoa(*params.Nonce)
+	}
+	if params.ValidUntil != nil {
+		input["validUntil"] = strconv.Itoa(*params.ValidUntil)
 	}
 
 	vars := map[string]any{"input": input, "signature": signatureVar(params.Signature)}
@@ -924,6 +981,9 @@ type SendDelegationParams struct {
 	Fee        Currency
 	Memo       string // optional
 	Nonce      *int   // optional explicit nonce
+	// ValidUntil is the last global slot (since genesis) the delegation is
+	// valid in.
+	ValidUntil *int
 	// Signature is optional: a signature made outside the daemon. Without it
 	// the daemon signs with the sender's key, which must be unlocked.
 	Signature *SignatureInput
@@ -963,6 +1023,9 @@ func (c *Client) SendDelegation(params SendDelegationParams) (*SendDelegationRes
 	}
 	if params.Nonce != nil {
 		input["nonce"] = strconv.Itoa(*params.Nonce)
+	}
+	if params.ValidUntil != nil {
+		input["validUntil"] = strconv.Itoa(*params.ValidUntil)
 	}
 
 	vars := map[string]any{"input": input, "signature": signatureVar(params.Signature)}

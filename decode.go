@@ -155,6 +155,53 @@ type zkappNode struct {
 	} `json:"failureReason"`
 }
 
+// blockZkappNode is a zkApp command in a block: a zkappNode plus the fee
+// payer's authorization and the account updates, which stay JSON.
+type blockZkappNode struct {
+	zkappNode
+	ZkappCommand struct {
+		Memo     string `json:"memo"`
+		FeePayer struct {
+			Authorization string `json:"authorization"`
+			Body          struct {
+				PublicKey  string `json:"publicKey"`
+				Fee        scalar `json:"fee"`
+				Nonce      scalar `json:"nonce"`
+				ValidUntil scalar `json:"validUntil"`
+			} `json:"body"`
+		} `json:"feePayer"`
+		AccountUpdates []json.RawMessage `json:"accountUpdates"`
+	} `json:"zkappCommand"`
+}
+
+func (z blockZkappNode) toBlockZkappCommand() (BlockZkappCommand, error) {
+	body := z.ZkappCommand.FeePayer.Body
+	fee, err := body.Fee.Currency("zkappCommands.feePayer.fee")
+	if err != nil {
+		return BlockZkappCommand{}, err
+	}
+	cmd := BlockZkappCommand{
+		ID:   z.ID,
+		Hash: z.Hash,
+		Memo: z.ZkappCommand.Memo,
+		FeePayer: ZkappFeePayer{
+			PublicKey:  body.PublicKey,
+			Fee:        fee,
+			Nonce:      body.Nonce.Int(),
+			ValidUntil: body.ValidUntil.OptInt(),
+		},
+		FeePayerAuthorization: z.ZkappCommand.FeePayer.Authorization,
+		AccountUpdates:        z.ZkappCommand.AccountUpdates,
+	}
+	if z.FailureReason != nil {
+		cmd.FailureReason = make([]ZkappFailure, len(z.FailureReason))
+		for i, f := range z.FailureReason {
+			cmd.FailureReason[i] = ZkappFailure{Index: f.Index.OptInt(), Failures: f.Failures}
+		}
+	}
+	return cmd, nil
+}
+
 func (z zkappNode) toResult() (*ZkappCommandResult, error) {
 	body := z.ZkappCommand.FeePayer.Body
 	fee, err := body.Fee.Currency("feePayer.fee")

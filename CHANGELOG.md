@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0-rc.2] - unreleased
+
+### Added
+- `spec/` is mina-sdk-spec v0.4.0-rc.2. `BlockInfo` gets `ZkappCommands`
+  (`BlockZkappCommand`: fee payer, failure reason and the account updates as
+  JSON) and `SnarkJobs` (`CompletedWork`); `DaemonStatus` gets
+  `GlobalSlotSinceGenesisBestTip`, `ConsensusTimeNow` (`ConsensusTime`) and
+  `AddrsAndPorts.Peer`; `PooledUserCommand` gets `ValidUntil`, `Token` and
+  `FeeToken`. These are the fields mina-frontend reads.
+- `SendPayment` and `SendDelegation` take `ValidUntil`, so that a command
+  signed with one can be sent as signed.
+
 ## [0.4.0-rc.1] - 2026-10-12
 
 From this release on, the four Mina SDKs and mina-sdk-spec have the same
