@@ -510,3 +510,24 @@ func TestPooledUserCommandsTokens(t *testing.T) {
 		t.Fatalf("tokens: %+v", cmds[0])
 	}
 }
+
+func TestSendPaymentAndDelegationSendValidUntil(t *testing.T) {
+	client, rec := mockDaemon(t, map[string]any{
+		"sendPayment":    map[string]any{"payment": map[string]any{"id": "i", "hash": "h", "nonce": 1}},
+		"sendDelegation": map[string]any{"delegation": map[string]any{"id": "i", "hash": "h", "nonce": 1}},
+	})
+	until := 4294967295
+	if _, err := client.SendPayment(SendPaymentParams{Sender: "a", Receiver: "b", Amount: CurrencyFromNanomina(1), Fee: CurrencyFromNanomina(1), ValidUntil: &until}); err != nil {
+		t.Fatal(err)
+	}
+	if got := rec.variables["input"].(map[string]any)["validUntil"]; got != "4294967295" {
+		t.Fatalf("payment validUntil: %v", got)
+	}
+	until = 42
+	if _, err := client.SendDelegation(SendDelegationParams{Sender: "a", DelegateTo: "b", Fee: CurrencyFromNanomina(1), ValidUntil: &until}); err != nil {
+		t.Fatal(err)
+	}
+	if got := rec.variables["input"].(map[string]any)["validUntil"]; got != "42" {
+		t.Fatalf("delegation validUntil: %v", got)
+	}
+}

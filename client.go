@@ -926,6 +926,9 @@ type SendPaymentParams struct {
 	Fee      Currency
 	Memo     string // optional
 	Nonce    *int   // optional explicit nonce
+	// ValidUntil is the last global slot (since genesis) the payment is
+	// valid in; a payment signed with one must be sent with the same value.
+	ValidUntil *int
 	// Signature is optional: a signature made outside the daemon. Without it
 	// the daemon signs with the sender's key, which must be unlocked.
 	Signature *SignatureInput
@@ -949,6 +952,9 @@ func (c *Client) SendPayment(params SendPaymentParams) (*SendPaymentResult, erro
 	}
 	if params.Nonce != nil {
 		input["nonce"] = strconv.Itoa(*params.Nonce)
+	}
+	if params.ValidUntil != nil {
+		input["validUntil"] = strconv.Itoa(*params.ValidUntil)
 	}
 
 	vars := map[string]any{"input": input, "signature": signatureVar(params.Signature)}
@@ -975,6 +981,9 @@ type SendDelegationParams struct {
 	Fee        Currency
 	Memo       string // optional
 	Nonce      *int   // optional explicit nonce
+	// ValidUntil is the last global slot (since genesis) the delegation is
+	// valid in.
+	ValidUntil *int
 	// Signature is optional: a signature made outside the daemon. Without it
 	// the daemon signs with the sender's key, which must be unlocked.
 	Signature *SignatureInput
@@ -1014,6 +1023,9 @@ func (c *Client) SendDelegation(params SendDelegationParams) (*SendDelegationRes
 	}
 	if params.Nonce != nil {
 		input["nonce"] = strconv.Itoa(*params.Nonce)
+	}
+	if params.ValidUntil != nil {
+		input["validUntil"] = strconv.Itoa(*params.ValidUntil)
 	}
 
 	vars := map[string]any{"input": input, "signature": signatureVar(params.Signature)}
