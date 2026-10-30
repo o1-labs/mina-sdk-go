@@ -1,7 +1,8 @@
 // Package mina provides a Go SDK for interacting with Mina Protocol daemon nodes.
 //
 // It wraps the daemon's GraphQL API with typed Go functions, providing:
-//   - Node status queries (sync status, daemon status, network ID)
+//   - Node status queries (sync status, daemon status, bootstrap status,
+//     transaction pool status, network ID)
 //   - Account queries (balance, nonce, delegation)
 //   - Blockchain queries (best chain blocks, peers, mempool)
 //   - Transaction mutations (payments, delegations, SNARK worker)
