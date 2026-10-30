@@ -142,6 +142,109 @@ type DaemonMetrics struct {
 	SnarkPoolSize                  int
 }
 
+// BootstrapPhase is where the daemon is in bootstrap
+// (bootstrapStatus.phase), from daemon 4.0.4.
+type BootstrapPhase string
+
+// Bootstrap phases reported by the Mina daemon, in order.
+const (
+	BootstrapPhaseStarting             BootstrapPhase = "STARTING"
+	BootstrapPhaseWaitingForGenesis    BootstrapPhase = "WAITING_FOR_GENESIS"
+	BootstrapPhaseWaitingForPeers      BootstrapPhase = "WAITING_FOR_PEERS"
+	BootstrapPhaseFetchingBestTip      BootstrapPhase = "FETCHING_BEST_TIP"
+	BootstrapPhaseLoadingFrontier      BootstrapPhase = "LOADING_FRONTIER"
+	BootstrapPhaseSyncingRootLedger    BootstrapPhase = "SYNCING_ROOT_LEDGER"
+	BootstrapPhaseDownloadingScanState BootstrapPhase = "DOWNLOADING_SCAN_STATE"
+	BootstrapPhaseBuildingStagedLedger BootstrapPhase = "BUILDING_STAGED_LEDGER"
+	BootstrapPhaseSyncingEpochLedgers  BootstrapPhase = "SYNCING_EPOCH_LEDGERS"
+	BootstrapPhaseParticipating        BootstrapPhase = "PARTICIPATING"
+)
+
+// SyncedLedger names the ledger a LedgerSync syncs.
+type SyncedLedger string
+
+// Ledgers the daemon syncs during bootstrap.
+const (
+	SyncedLedgerRootSnarked  SyncedLedger = "ROOT_SNARKED"
+	SyncedLedgerStakingEpoch SyncedLedger = "STAKING_EPOCH"
+	SyncedLedgerNextEpoch    SyncedLedger = "NEXT_EPOCH"
+)
+
+// LedgerSyncProgress is the progress of a ledger sync. Times are strings, as
+// the daemon sends its Time scalar.
+type LedgerSyncProgress struct {
+	// Targets is how many times the sync has been given a new root to reach.
+	Targets int
+	// TargetSetAt is when the current target was set; nil if none is set.
+	TargetSetAt *string
+	// PendingChildHashes is how many inner nodes the sync is waiting for the
+	// children of; PendingContents how many account subtrees it is waiting
+	// for the accounts of.
+	PendingChildHashes int
+	PendingContents    int
+	// Synced is whether the ledger has reached the current target.
+	Synced bool
+	// AnswersAccepted, AnswersIgnored and AnswersRejected count the answers
+	// from peers that added to the ledger, that arrived for queries the sync
+	// no longer needed, and that were invalid.
+	AnswersAccepted int
+	AnswersIgnored  int
+	AnswersRejected int
+	// LastAcceptedAnswerAt is when an answer was last accepted; nil if none.
+	LastAcceptedAnswerAt *string
+	// NumAccounts is how many accounts the current target holds, once a peer
+	// has said; nil before.
+	NumAccounts *int
+	// AccountsSettled is how many of the current target's accounts the ledger
+	// is known to hold; AccountsReceived how many accounts peers have sent,
+	// over all targets.
+	AccountsSettled  int
+	AccountsReceived int
+}
+
+// LedgerSync is the most recent sync of one ledger (bootstrapStatus.ledgerSyncs).
+type LedgerSync struct {
+	Ledger SyncedLedger
+	// Target is the ledger hash the sync is reaching; nil if none is set.
+	Target *string
+	// Active is whether the sync is still running.
+	Active   bool
+	Progress LedgerSyncProgress
+}
+
+// BootstrapStatus is the daemon's bootstrap status (bootstrapStatus), from
+// daemon 4.0.4. Times are strings, as the daemon sends its Time scalar.
+type BootstrapStatus struct {
+	Phase          BootstrapPhase
+	PhaseStartedAt string
+	// BootstrapStartedAt is when the current or most recent bootstrap
+	// started; nil if the daemon has not bootstrapped.
+	BootstrapStartedAt *string
+	// BootstrapAttempts is how many attempts the current or most recent
+	// bootstrap has started.
+	BootstrapAttempts int
+	// LastAttemptFailure is why that bootstrap's last failed attempt failed;
+	// nil if none failed.
+	LastAttemptFailure *string
+	// LedgerSyncs is the most recent sync of each ledger.
+	LedgerSyncs []LedgerSync
+}
+
+// TransactionPoolStatus is the size and admission fee of the daemon's
+// transaction pool (transactionPoolStatus), from daemon 4.0.4.
+type TransactionPoolStatus struct {
+	// Size is the number of commands in the pool; MaxSize the number it
+	// holds before it starts evicting commands.
+	Size    int
+	MaxSize int
+	// MinimumFeePerWeightUnit is the lowest fee per weight unit of any
+	// command in the pool, in nanomina, as a decimal integer or a fraction
+	// "n/d"; nil when the pool is empty. Once the pool is full, a new
+	// command must pay strictly more. Payments and stake delegations have
+	// weight 1.
+	MinimumFeePerWeightUnit *string
+}
+
 // BlockInfo represents a block (from GetBestChain, GetGenesisBlock or
 // GetBlock).
 type BlockInfo struct {

@@ -209,6 +209,106 @@ func TestDaemonStatusNewFieldsAndMetrics(t *testing.T) {
 	}
 }
 
+func TestBootstrapStatus(t *testing.T) {
+	client, _ := mockDaemon(t, map[string]any{"bootstrapStatus": map[string]any{
+		"phase":              "SYNCING_ROOT_LEDGER",
+		"phaseStartedAt":     "1700000010000",
+		"bootstrapStartedAt": "1700000000000",
+		"bootstrapAttempts":  2,
+		"lastAttemptFailure": "best tip peer went away",
+		"ledgerSyncs": []any{map[string]any{
+			"ledger": "ROOT_SNARKED",
+			"target": "jxRoot",
+			"active": true,
+			"progress": map[string]any{
+				"targets":              1,
+				"targetSetAt":          "1700000011000",
+				"pendingChildHashes":   3,
+				"pendingContents":      40,
+				"synced":               false,
+				"answersAccepted":      120,
+				"answersIgnored":       2,
+				"answersRejected":      1,
+				"lastAcceptedAnswerAt": "1700000012000",
+				"numAccounts":          nil,
+				"accountsSettled":      5000,
+				"accountsReceived":     5200,
+			},
+		}},
+	}})
+	status, err := client.GetBootstrapStatus()
+	if err != nil {
+		t.Fatal(err)
+	}
+	str := func(s string) *string { return &s }
+	want := &BootstrapStatus{
+		Phase:              BootstrapPhaseSyncingRootLedger,
+		PhaseStartedAt:     "1700000010000",
+		BootstrapStartedAt: str("1700000000000"),
+		BootstrapAttempts:  2,
+		LastAttemptFailure: str("best tip peer went away"),
+		LedgerSyncs: []LedgerSync{{
+			Ledger: SyncedLedgerRootSnarked,
+			Target: str("jxRoot"),
+			Active: true,
+			Progress: LedgerSyncProgress{
+				Targets: 1, TargetSetAt: str("1700000011000"),
+				PendingChildHashes: 3, PendingContents: 40, Synced: false,
+				AnswersAccepted: 120, AnswersIgnored: 2, AnswersRejected: 1,
+				LastAcceptedAnswerAt: str("1700000012000"), NumAccounts: nil,
+				AccountsSettled: 5000, AccountsReceived: 5200,
+			},
+		}},
+	}
+	if !reflect.DeepEqual(status, want) {
+		t.Errorf("bootstrap status = %+v, want %+v", status, want)
+	}
+
+	// Before the first bootstrap: no start, no failure, no syncs.
+	client, _ = mockDaemon(t, map[string]any{"bootstrapStatus": map[string]any{
+		"phase": "WAITING_FOR_PEERS", "phaseStartedAt": "1700000000000",
+		"bootstrapStartedAt": nil, "bootstrapAttempts": 0, "lastAttemptFailure": nil,
+		"ledgerSyncs": []any{},
+	}})
+	status, err = client.GetBootstrapStatus()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if status.Phase != BootstrapPhaseWaitingForPeers || status.BootstrapStartedAt != nil ||
+		status.BootstrapAttempts != 0 || status.LastAttemptFailure != nil || len(status.LedgerSyncs) != 0 {
+		t.Errorf("bootstrap status = %+v", status)
+	}
+}
+
+func TestTransactionPoolStatus(t *testing.T) {
+	client, rec := mockDaemon(t, map[string]any{"transactionPoolStatus": map[string]any{
+		"size": 12, "maxSize": 3000, "minimumFeePerWeightUnit": "1000000/3",
+	}})
+	status, err := client.GetTransactionPoolStatus()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(rec.query, "transactionPoolStatus") {
+		t.Errorf("query = %s", rec.query)
+	}
+	if status.Size != 12 || status.MaxSize != 3000 ||
+		status.MinimumFeePerWeightUnit == nil || *status.MinimumFeePerWeightUnit != "1000000/3" {
+		t.Errorf("pool status = %+v", status)
+	}
+
+	// An empty pool has no minimum fee.
+	client, _ = mockDaemon(t, map[string]any{"transactionPoolStatus": map[string]any{
+		"size": 0, "maxSize": 3000, "minimumFeePerWeightUnit": nil,
+	}})
+	status, err = client.GetTransactionPoolStatus()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if status.Size != 0 || status.MaxSize != 3000 || status.MinimumFeePerWeightUnit != nil {
+		t.Errorf("pool status = %+v", status)
+	}
+}
+
 func TestAccountSendsANullTokenAndReadsNewFields(t *testing.T) {
 	client, rec := mockDaemon(t, map[string]any{"account": map[string]any{
 		"publicKey": "B62qacc", "nonce": "4", "delegate": nil, "tokenId": "wSHV",

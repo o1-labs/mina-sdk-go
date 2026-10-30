@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `spec/` is mina-sdk-spec v0.4.0-rc.3. `GetBootstrapStatus`
+  (`BootstrapStatus`: `BootstrapPhase`, `LedgerSync` of each `SyncedLedger`
+  with its `LedgerSyncProgress`) and `GetTransactionPoolStatus`
+  (`TransactionPoolStatus`: size, capacity and the minimum fee per weight
+  unit, as a string). Both need daemon 4.0.4; an older daemon answers with a
+  `GraphQLError`.
+
 ## [0.4.0-rc.2] - unreleased
 
 ### Added

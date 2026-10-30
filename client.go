@@ -303,6 +303,105 @@ func (c *Client) GetDaemonMetrics() (*DaemonMetrics, error) {
 	}, nil
 }
 
+// GetBootstrapStatus returns the daemon's bootstrap status: its phase, when
+// the phase and the bootstrap started, the attempts, and the sync of each
+// ledger. It needs daemon 4.0.4; an older daemon answers with a GraphQLError.
+func (c *Client) GetBootstrapStatus() (*BootstrapStatus, error) {
+	data, err := c.request(queryBootstrapStatus, nil, "get_bootstrap_status")
+	if err != nil {
+		return nil, err
+	}
+	var result struct {
+		BootstrapStatus struct {
+			Phase              BootstrapPhase `json:"phase"`
+			PhaseStartedAt     string         `json:"phaseStartedAt"`
+			BootstrapStartedAt *string        `json:"bootstrapStartedAt"`
+			BootstrapAttempts  int            `json:"bootstrapAttempts"`
+			LastAttemptFailure *string        `json:"lastAttemptFailure"`
+			LedgerSyncs        []struct {
+				Ledger   SyncedLedger `json:"ledger"`
+				Target   *string      `json:"target"`
+				Active   bool         `json:"active"`
+				Progress struct {
+					Targets              int     `json:"targets"`
+					TargetSetAt          *string `json:"targetSetAt"`
+					PendingChildHashes   int     `json:"pendingChildHashes"`
+					PendingContents      int     `json:"pendingContents"`
+					Synced               bool    `json:"synced"`
+					AnswersAccepted      int     `json:"answersAccepted"`
+					AnswersIgnored       int     `json:"answersIgnored"`
+					AnswersRejected      int     `json:"answersRejected"`
+					LastAcceptedAnswerAt *string `json:"lastAcceptedAnswerAt"`
+					NumAccounts          *int    `json:"numAccounts"`
+					AccountsSettled      int     `json:"accountsSettled"`
+					AccountsReceived     int     `json:"accountsReceived"`
+				} `json:"progress"`
+			} `json:"ledgerSyncs"`
+		} `json:"bootstrapStatus"`
+	}
+	if err := json.Unmarshal(data, &result); err != nil {
+		return nil, err
+	}
+	bs := result.BootstrapStatus
+	status := &BootstrapStatus{
+		Phase:              bs.Phase,
+		PhaseStartedAt:     bs.PhaseStartedAt,
+		BootstrapStartedAt: bs.BootstrapStartedAt,
+		BootstrapAttempts:  bs.BootstrapAttempts,
+		LastAttemptFailure: bs.LastAttemptFailure,
+		LedgerSyncs:        make([]LedgerSync, len(bs.LedgerSyncs)),
+	}
+	for i, ls := range bs.LedgerSyncs {
+		p := ls.Progress
+		status.LedgerSyncs[i] = LedgerSync{
+			Ledger: ls.Ledger,
+			Target: ls.Target,
+			Active: ls.Active,
+			Progress: LedgerSyncProgress{
+				Targets:              p.Targets,
+				TargetSetAt:          p.TargetSetAt,
+				PendingChildHashes:   p.PendingChildHashes,
+				PendingContents:      p.PendingContents,
+				Synced:               p.Synced,
+				AnswersAccepted:      p.AnswersAccepted,
+				AnswersIgnored:       p.AnswersIgnored,
+				AnswersRejected:      p.AnswersRejected,
+				LastAcceptedAnswerAt: p.LastAcceptedAnswerAt,
+				NumAccounts:          p.NumAccounts,
+				AccountsSettled:      p.AccountsSettled,
+				AccountsReceived:     p.AccountsReceived,
+			},
+		}
+	}
+	return status, nil
+}
+
+// GetTransactionPoolStatus returns the size of the daemon's transaction pool
+// and the fee a new command must beat once the pool is full. It needs daemon
+// 4.0.4; an older daemon answers with a GraphQLError.
+func (c *Client) GetTransactionPoolStatus() (*TransactionPoolStatus, error) {
+	data, err := c.request(queryTransactionPoolStatus, nil, "get_transaction_pool_status")
+	if err != nil {
+		return nil, err
+	}
+	var result struct {
+		TransactionPoolStatus struct {
+			Size                    int     `json:"size"`
+			MaxSize                 int     `json:"maxSize"`
+			MinimumFeePerWeightUnit *string `json:"minimumFeePerWeightUnit"`
+		} `json:"transactionPoolStatus"`
+	}
+	if err := json.Unmarshal(data, &result); err != nil {
+		return nil, err
+	}
+	ps := result.TransactionPoolStatus
+	return &TransactionPoolStatus{
+		Size:                    ps.Size,
+		MaxSize:                 ps.MaxSize,
+		MinimumFeePerWeightUnit: ps.MinimumFeePerWeightUnit,
+	}, nil
+}
+
 // GetNetworkID returns the network identifier.
 func (c *Client) GetNetworkID() (string, error) {
 	data, err := c.request(queryNetworkID, nil, "get_network_id")
